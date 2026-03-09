@@ -4,3 +4,8 @@
 
 # LangGraph
 .langgraph_api/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
