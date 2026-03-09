@@ -7,7 +7,7 @@ from gout_eval.adapters.base import BaseAdapter
 from gout_eval.generation.prompt_builder import build_prompt
 from gout_eval.storage.artifacts import append_jsonl
 
-def load_testset(path: str | Path) -> List[Dist[str, Any]]:
+def load_testset(path: str | Path) -> List[Dict[str, Any]]:
     path = Path(path)
     samples: List[Dict[str, Any]] = []
 
