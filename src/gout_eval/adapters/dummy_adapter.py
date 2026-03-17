@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import random
 from typing import Any
 
 from .base import BaseAdapter, GenerationResult
@@ -8,22 +9,30 @@ class DummyAdapter(BaseAdapter):
     """
     A lightweight adapter for testing the pipeline without loading a real LLM.
     """
+    def __init__(self, model_name: str = "DummyModel"):
+        self.model_name = model_name
 
-    def generate(self, prompt, **kwargs: Any) -> GenerationResult:
+    def generate(self, prompt: str, **kwargs: Any) -> GenerationResult:
         start = time.perf_counter()
 
-        # Fake response for pipeline testing.
+        # 1. Giả lập độ trễ để test hiệu ứng Loading/Spinner trên UI (0.5s đến 1.5s)
+        time.sleep(random.uniform(0.5, 1.5))
+
+        # 2. Tạo câu trả lời giả lập phân biệt theo tên model
         answer = (
-            "This is a dummy answer generated for pipeline testing."
-            "Please replace DummyAdapter with a real model adapter later."
+            f"Đây là câu trả lời giả lập từ mô hình [{self.model_name}] để test luồng Pipeline.\n"
+            "Bệnh nhân gút cần tuân thủ phác đồ của Bộ Y tế và tránh ăn hải sản."
         )
 
+        # Tính toán latency (ms)
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
 
+        # 3. Trả về đúng định dạng chuẩn
         return GenerationResult(
-            text = answer,
-            meta = {
+            text=answer,
+            meta={
                 "backend": "dummy",
+                "model_name": self.model_name,
                 "latency_ms": latency_ms,
                 "prompt_length": len(prompt),
             },
