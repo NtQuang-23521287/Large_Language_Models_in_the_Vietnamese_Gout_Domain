@@ -7,16 +7,43 @@ from gout_eval.adapters.base import BaseAdapter
 from gout_eval.generation.prompt_builder import build_prompt
 from gout_eval.storage.artifacts import append_jsonl
 
+
+def normalize_sample(sample: Dict[str, Any], index: int) -> Dict[str, Any]:
+    question = sample.get("question") or sample.get("cau_hoi")
+    if not question:
+        raise ValueError(f"Sample at index {index} is missing 'question'/'cau_hoi'.")
+
+    question_id = sample.get("question_id") or f"sample_{index:03d}"
+    risk_level = sample.get("risk_level")
+    if risk_level is None and "cap_do" in sample:
+        risk_level = sample["cap_do"]
+
+    return {
+        "question_id": question_id,
+        "question": question,
+        "ground_truth": sample.get("ground_truth", ""),
+        "risk_level": risk_level,
+    }
+
+
 def load_testset(path: str | Path) -> List[Dict[str, Any]]:
     path = Path(path)
-    samples: List[Dict[str, Any]] = []
+    raw_text = path.read_text(encoding="utf-8").strip()
+    if not raw_text:
+        return []
 
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            samples.append(json.loads(line))
+    if raw_text.startswith("["):
+        data = json.loads(raw_text)
+        if not isinstance(data, list):
+            raise ValueError(f"Expected a JSON array in {path}")
+        return [normalize_sample(sample, index + 1) for index, sample in enumerate(data)]
+
+    samples: List[Dict[str, Any]] = []
+    for index, line in enumerate(raw_text.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        samples.append(normalize_sample(json.loads(line), index))
 
     return samples
 
