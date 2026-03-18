@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from gout_eval.adapters.base import BaseAdapter
-from gout_eval.generation.prompt_builder import build_prompt
-from gout_eval.storage.artifacts import append_jsonl
+# Nhớ kiểm tra lại đường dẫn import cho đúng với project của bạn
+from src.gout_eval.adapters.base import BaseAdapter
+from src.gout_eval.generation.prompt_builder import build_prompt
+from src.gout_eval.storage.artifacts import append_jsonl
 
 
 def normalize_sample(sample: Dict[str, Any], index: int) -> Dict[str, Any]:
@@ -28,6 +29,7 @@ def normalize_sample(sample: Dict[str, Any], index: int) -> Dict[str, Any]:
 
 def load_testset(path: str | Path) -> List[Dict[str, Any]]:
     path = Path(path)
+<<<<<<< HEAD
     raw_text = path.read_text(encoding="utf-8").strip()
     if not raw_text:
         return []
@@ -44,6 +46,26 @@ def load_testset(path: str | Path) -> List[Dict[str, Any]]:
         if not line:
             continue
         samples.append(normalize_sample(json.loads(line), index))
+=======
+    
+    # TH 1: Cố gắng đọc như một file JSON mảng tiêu chuẩn (như file gout_test_cases.json)
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+    except json.JSONDecodeError:
+        pass # Nếu lỗi, chuyển sang cách đọc JSONL ở dưới
+
+    # TH 2: Đọc theo định dạng JSONL (mỗi dòng 1 object)
+    samples: List[Dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            samples.append(json.loads(line))
+>>>>>>> 9f27b5341531ba021b8c6d908d21c6c99960024a
 
     return samples
 
@@ -59,17 +81,20 @@ def generate_answers(
     """
     testset = load_testset(testset_path)
 
-    for sample in testset:
-        question_id = sample["question_id"]
-        question = sample["question"]
+    for idx, sample in enumerate(testset):
+        # Sửa lỗi Key Mismatch: Hỗ trợ cả key tiếng Anh (mới) và key tiếng Việt (từ file data cũ)
+        # Tự động tạo question_id nếu trong file data không có (VD: Q_001, Q_002)
+        question_id = sample.get("question_id", f"Q_{idx+1:03d}")
+        question = sample.get("question", sample.get("cau_hoi", ""))
         ground_truth = sample.get("ground_truth", "")
-        risk_level = sample.get("risk_level", None)
+        risk_level = sample.get("risk_level", sample.get("cap_do", "Unknown"))
 
         # For now: no real retrieval yet
         contexts: List[str] = []
         if rag_enabled:
+            # Ngữ cảnh giả lập cho tiếng Việt
             contexts = [
-                "Dummy retrieved context for testing RAG pipeline."
+                "Bệnh gút là một loại viêm khớp do lắng đọng tinh thể urat, cần điều chỉnh chế độ ăn uống và dùng thuốc hạ acid uric."
             ]
 
         prompt = build_prompt(question=question, contexts=contexts)
@@ -87,5 +112,10 @@ def generate_answers(
             "meta": result.meta,
         }
 
+        # Lưu dần vào file JSONL để theo dõi tiến độ (lỡ đứt mạng hoặc lỗi vẫn không mất data)
         append_jsonl(artifacts_path, artifact)
+<<<<<<< HEAD
         print(f"[OK] Generated answer for {question_id}")
+=======
+        print(f"[OK] Đã sinh xong câu trả lời cho {question_id}")
+>>>>>>> 9f27b5341531ba021b8c6d908d21c6c99960024a

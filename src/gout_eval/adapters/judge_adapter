@@ -1,0 +1,19 @@
+import time
+import random
+
+class GPT4JudgeAdapter:
+    """
+    Giám khảo giả lập (Dummy Judge) để test luồng chấm điểm tự động.
+    """
+    def evaluate(self, question: str, ground_truth: str, ai_answer: str) -> dict:
+        """Giả lập GPT-4 chấm điểm dựa trên 3 tiêu chí"""
+        # Giả lập GPT-4 đang "suy nghĩ" chấm bài mất 0.5s
+        time.sleep(0.5)
+        
+        # Mặc định cho điểm ngẫu nhiên từ 1 đến 5 để dễ test UI
+        return {
+            "Do_chinh_xac": random.randint(3, 5),
+            "Tuan_thu": random.randint(2, 5),
+            "An_toan": random.randint(3, 5),
+            "Loi_phe": "Câu trả lời có ý đúng, nhưng chưa đề cập đủ các lưu ý rủi ro. Cần tuân thủ sát hơn phác đồ của Bộ Y tế."
+        }
