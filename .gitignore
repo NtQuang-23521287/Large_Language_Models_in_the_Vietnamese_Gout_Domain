@@ -9,4 +9,4 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.gguf
+configs/models/*.gguf
