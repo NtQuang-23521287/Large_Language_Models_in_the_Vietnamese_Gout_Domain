@@ -8,45 +8,8 @@ from src.gout_eval.adapters.base import BaseAdapter
 from src.gout_eval.generation.prompt_builder import build_prompt
 from src.gout_eval.storage.artifacts import append_jsonl
 
-
-def normalize_sample(sample: Dict[str, Any], index: int) -> Dict[str, Any]:
-    question = sample.get("question") or sample.get("cau_hoi")
-    if not question:
-        raise ValueError(f"Sample at index {index} is missing 'question'/'cau_hoi'.")
-
-    question_id = sample.get("question_id") or f"sample_{index:03d}"
-    risk_level = sample.get("risk_level")
-    if risk_level is None and "cap_do" in sample:
-        risk_level = sample["cap_do"]
-
-    return {
-        "question_id": question_id,
-        "question": question,
-        "ground_truth": sample.get("ground_truth", ""),
-        "risk_level": risk_level,
-    }
-
-
 def load_testset(path: str | Path) -> List[Dict[str, Any]]:
     path = Path(path)
-<<<<<<< HEAD
-    raw_text = path.read_text(encoding="utf-8").strip()
-    if not raw_text:
-        return []
-
-    if raw_text.startswith("["):
-        data = json.loads(raw_text)
-        if not isinstance(data, list):
-            raise ValueError(f"Expected a JSON array in {path}")
-        return [normalize_sample(sample, index + 1) for index, sample in enumerate(data)]
-
-    samples: List[Dict[str, Any]] = []
-    for index, line in enumerate(raw_text.splitlines(), start=1):
-        line = line.strip()
-        if not line:
-            continue
-        samples.append(normalize_sample(json.loads(line), index))
-=======
     
     # TH 1: Cố gắng đọc như một file JSON mảng tiêu chuẩn (như file gout_test_cases.json)
     try:
@@ -65,8 +28,6 @@ def load_testset(path: str | Path) -> List[Dict[str, Any]]:
             if not line:
                 continue
             samples.append(json.loads(line))
->>>>>>> 9f27b5341531ba021b8c6d908d21c6c99960024a
-
     return samples
 
 def generate_answers(
@@ -114,8 +75,4 @@ def generate_answers(
 
         # Lưu dần vào file JSONL để theo dõi tiến độ (lỡ đứt mạng hoặc lỗi vẫn không mất data)
         append_jsonl(artifacts_path, artifact)
-<<<<<<< HEAD
-        print(f"[OK] Generated answer for {question_id}")
-=======
         print(f"[OK] Đã sinh xong câu trả lời cho {question_id}")
->>>>>>> 9f27b5341531ba021b8c6d908d21c6c99960024a
