@@ -28,7 +28,6 @@ def load_testset(path: str | Path) -> List[Dict[str, Any]]:
             if not line:
                 continue
             samples.append(json.loads(line))
-
     return samples
 
 def generate_answers(
