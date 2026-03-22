@@ -1,3 +1,0 @@
-{"question_id":"gout_001","question":"What is acute gout?","risk_level":1,"ground_truth":"Acute gout is an inflammatory arthritis caused by monosodium urate crystal deposition."}
-{"question_id":"gout_002","question":"What drugs are commonly used for acute gout treatment?","risk_level":2,"ground_truth":"NSAIDs, colchicine, and corticosteroids are commonly used."}
-{"question_id":"gout_003","question":"Should allopurinol be started during an acute gout flare?","risk_level":3,"ground_truth":"It depends on the guideline and clinical context; initiation is not the same as flare control treatment."}
