@@ -32,11 +32,19 @@ def main() -> None:
         "--testset",
         type=str,
         default=str(PROJECT_ROOT / "data" / "testset" / "gout_test_cases.jsonl"),
+        help="Path to testset file (JSON array or JSONL).",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
         default=str(PROJECT_ROOT / "runs"),
+        help="Directory to store run outputs.",
+    )
+    parser.add_argument(
+        "--index_dir",
+        type=str,
+        default=str(PROJECT_ROOT / "indexes" / "gout_kb_v1"),
+        help="Directory containing FAISS index and metadata for RAG.",
     )
 
     # ========================
@@ -45,9 +53,14 @@ def main() -> None:
     parser.add_argument(
         "--rag",
         action="store_true",
-        help="Enable dummy RAG mode for testing.",
+        help="Enable RAG retrieval using the FAISS knowledge base.",
     )
-
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=3,
+        help="Number of retrieved chunks for RAG.",
+    )
     parser.add_argument(
         "--backend",
         type=str,
@@ -73,11 +86,13 @@ def main() -> None:
         "--max_tokens",
         type=int,
         default=64,
+        help="Maximum number of new tokens to generate.",
     )
     parser.add_argument(
         "--temperature",
         type=float,
         default=0.2,
+        help="Sampling temperature.",
     )
 
     args = parser.parse_args()
@@ -94,10 +109,8 @@ def main() -> None:
     # ========================
     if args.backend == "dummy":
         adapter = DummyAdapter()
-
     elif args.backend == "hf":
         adapter = HFAdapter(model_name=args.model_name)
-
     else:
         raise ValueError(f"Unsupported backend: {args.backend}")
 
@@ -108,9 +121,17 @@ def main() -> None:
     print(f"[INFO] Backend: {args.backend}")
     print(f"[INFO] Testset: {args.testset}")
     print(f"[INFO] Output: {run_dir}")
+    print(f"[INFO] RAG enabled: {args.rag}")
+
+    if args.rag:
+        print(f"[INFO] Index dir: {args.index_dir}")
+        print(f"[INFO] Top-k: {args.top_k}")
 
     if args.backend == "hf":
         print(f"[INFO] Model: {args.model_name}")
+
+    print(f"[INFO] Max tokens: {args.max_tokens}")
+    print(f"[INFO] Temperature: {args.temperature}")
 
     # ========================
     # Run generation
@@ -121,6 +142,10 @@ def main() -> None:
         testset_path=args.testset,
         artifacts_path=artifacts_path,
         rag_enabled=args.rag,
+        index_dir=args.index_dir,
+        top_k=args.top_k,
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
     )
 
     print(f"[DONE] Artifacts saved to: {artifacts_path}")
