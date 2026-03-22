@@ -1,27 +1,41 @@
 from __future__ import annotations
 from typing import List
 
+
 def build_prompt(question: str, contexts: List[str] | None = None) -> str:
     """
-    Build a simple prompt for generation.
+    Build prompt optimized for Vietnamese medical RAG.
     """
     contexts = contexts or []
 
     if contexts:
         context_block = "\n\n".join(
-            [f"[Context {i+1}]\n{ctx}" for i, ctx in enumerate(contexts)]
+            [f"[Tài liệu {i+1}]\n{ctx}" for i, ctx in enumerate(contexts)]
         )
-        return (
-            "You are a medical assistant.\n"
-            "Answer the user's question based on the provided contexts.\n\n"
-            "If the answer is uncertain, say so clearly.\n\n"
-            f"{context_block}\n\n"
-            f"Question: {question}\n"
-            "Answer:"
-        )
-    return (
-        "You are a medical assistant.\n"
-        "Answer the user's question clearly and safely.\n\n"
-        f"Question: {question}\n"
-        "Answer:"
-    )
+
+        return f"""Bạn là một bác sĩ AI chuyên về bệnh gút.
+
+Yêu cầu:
+1. Chỉ sử dụng thông tin từ tài liệu được cung cấp.
+2. Không suy đoán hoặc bịa thêm thông tin ngoài tài liệu.
+3. Nếu có nhiều tài liệu, hãy tổng hợp ngắn gọn và nhất quán.
+4. Nếu tài liệu không đủ thông tin để trả lời, hãy ghi rõ: "Không đủ thông tin".
+5. Trả lời ngắn gọn, rõ ràng, dễ hiểu và an toàn.
+
+Tài liệu:
+{context_block}
+
+Câu hỏi: {question}
+
+Trả lời (kèm giải thích ngắn gọn):"""
+
+    return f"""Bạn là một bác sĩ AI.
+
+Yêu cầu:
+1. Trả lời ngắn gọn, rõ ràng và an toàn.
+2. Nếu không chắc chắn, hãy nói rõ điều đó.
+3. Không đưa ra khẳng định quá mức.
+
+Câu hỏi: {question}
+
+Trả lời:"""

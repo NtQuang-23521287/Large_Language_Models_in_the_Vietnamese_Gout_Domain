@@ -29,7 +29,13 @@ def main() -> None:
     parser.add_argument(
         "--rag",
         action="store_true",
-        help="Enable dummy RAG mode for testing.",
+        help="Enable RAG retrieval using the FAISS knowledge base.",
+    )
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=3,
+        help="Number of retrieved chunks for RAG.",
     )
     args = parser.parse_args()
 
@@ -42,6 +48,11 @@ def main() -> None:
     print(f"[INFO] Starting run: {run_id}")
     print(f"[INFO] Testset: {args.testset}")
     print(f"[INFO] Output: {run_dir}")
+    print(f"[INFO] RAG enabled: {args.rag}")
+
+    if args.rag:
+        print(f"[INFO] Index dir: {args.index_dir}")
+        print(f"[INFO] Top-k: {args.top_k}")
 
     generate_answers(
         run_id=run_id,
@@ -49,6 +60,10 @@ def main() -> None:
         testset_path=args.testset,
         artifacts_path=artifacts_path,
         rag_enabled=args.rag,
+        index_dir=args.index_dir,
+        top_k=args.top_k,
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
     )
 
     print(f"[DONE] Artifacts saved to: {artifacts_path}")
