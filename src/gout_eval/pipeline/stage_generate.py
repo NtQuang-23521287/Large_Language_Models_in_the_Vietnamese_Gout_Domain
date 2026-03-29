@@ -14,30 +14,10 @@ try:
 except Exception:
     FaissRetriever = None  # type: ignore
 
-
-def normalize_sample(sample: Dict[str, Any], index: int) -> Dict[str, Any]:
-    question = sample.get("question") or sample.get("cau_hoi")
-    if not question:
-        raise ValueError(f"Sample at index {index} is missing 'question'/'cau_hoi'.")
-
-    question_id = sample.get("question_id") or f"Q_{index + 1:03d}"
-
-    risk_level = sample.get("risk_level")
-    if risk_level is None and "cap_do" in sample:
-        risk_level = sample["cap_do"]
-
-    return {
-        "question_id": question_id,
-        "question": question,
-        "ground_truth": sample.get("ground_truth", ""),
-        "risk_level": risk_level if risk_level is not None else "Unknown",
-    }
-
-
 def load_testset(path: str | Path) -> List[Dict[str, Any]]:
     path = Path(path)
-
-    # TH1: JSON array
+    
+    # TH 1: Cố gắng đọc như một file JSON mảng tiêu chuẩn (như file gout_test_cases.json)
     try:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
@@ -54,7 +34,6 @@ def load_testset(path: str | Path) -> List[Dict[str, Any]]:
             if not line:
                 continue
             samples.append(json.loads(line))
-
     return samples
 
 
