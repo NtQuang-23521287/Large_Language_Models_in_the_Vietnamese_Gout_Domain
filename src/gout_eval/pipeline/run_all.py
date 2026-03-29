@@ -12,7 +12,6 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from gout_eval.adapters.dummy_adapter import DummyAdapter
-from gout_eval.adapters.hf_adapter import HFAdapter
 from gout_eval.pipeline.stage_generate import generate_answers
 
 
@@ -75,7 +74,7 @@ def main() -> None:
     parser.add_argument(
         "--model_name",
         type=str,
-        default="Qwen/Qwen2.5-0.5B-Instruct",
+        default="vinai/PhoGPT-4B-Chat",
         help="HuggingFace model name.",
     )
 
@@ -110,6 +109,8 @@ def main() -> None:
     if args.backend == "dummy":
         adapter = DummyAdapter()
     elif args.backend == "hf":
+        from gout_eval.adapters.hf_adapter import HFAdapter
+
         adapter = HFAdapter(model_name=args.model_name)
     else:
         raise ValueError(f"Unsupported backend: {args.backend}")
