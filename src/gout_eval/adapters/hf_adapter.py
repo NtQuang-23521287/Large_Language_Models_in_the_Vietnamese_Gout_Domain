@@ -1,49 +1,79 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .base import BaseAdapter, GenerationResult
+from gout_eval.adapters.base import BaseAdapter, GenerationResult
 
 
 class HFAdapter(BaseAdapter):
     def __init__(self, model_name: str):
         print(f"[INFO] Loading model: {model_name}")
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model_name = model_name
+
+        self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
-            dtype=torch.float32,  # CPU safe
-            device_map="cpu"
+            trust_remote_code=True,
         )
 
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model.to(self.device)
         self.model.eval()
 
+        print(f"[INFO] Model loaded on device: {self.device}")
+
     def generate(self, prompt: str, **kwargs: Any) -> GenerationResult:
-        max_tokens = kwargs.get("max_tokens", 64)
+        max_tokens = kwargs.get("max_tokens", 128)
         temperature = kwargs.get("temperature", 0.2)
 
         start = time.perf_counter()
 
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        input_length = inputs["input_ids"].shape[1]
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=2048,
+        )
+
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        input_len = inputs["input_ids"].shape[1]
 
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_tokens,
-                do_sample=True,
-                temperature=temperature,
-            )
+            if temperature <= 0:
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                )
+            else:
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    do_sample=True,
+                    temperature=temperature,
+                    top_p=0.9,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                )
 
-        generated_tokens = outputs[0][input_length:]
-        text = self.tokenizer.decode(
-            generated_tokens,
-            skip_special_tokens=True,
-        ).strip()
+        generated_ids = outputs[0][input_len:]
+        text = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
 
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
 
@@ -51,12 +81,13 @@ class HFAdapter(BaseAdapter):
             text=text,
             meta={
                 "backend": "hf",
-                "model_name": self.model.name_or_path,
+                "model_name": self.model_name,
                 "latency_ms": latency_ms,
                 "prompt_length": len(prompt),
-                "input_tokens": input_length,
-                "output_tokens": int(generated_tokens.shape[0]),
+                "input_tokens": int(input_len),
+                "output_tokens": int(len(generated_ids)),
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                "device": self.device,
             },
         )
