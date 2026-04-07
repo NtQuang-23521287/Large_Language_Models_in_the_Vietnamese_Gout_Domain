@@ -1,3 +1,6 @@
+fastapi
+uvicorn[standard]
+pandas
 transformers>=4.40,<5.0
 huggingface-hub>=0.34,<1.0
 torch
@@ -6,3 +9,5 @@ sentencepiece
 einops
 openai
 tqdm
+faiss-cpu
+sentence-transformers
