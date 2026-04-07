@@ -1,27 +1,40 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
-
-import pandas as pd
-
-import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
+
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from datetime import datetime
+from typing import Any, Dict, List
+import time
+
+import pandas as pd
+import streamlit as st
+
+from gout_eval.generation.prompt_builder import build_prompt
+from gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
+from gout_eval.pipeline.stage_generate import load_testset
 from gout_eval.adapters.hf_adapter import HFAdapter
 from gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
 from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
-from gout_eval.generation.prompt_builder import build_prompt
 from gout_eval.generation.retriever import FaissRetriever
-from gout_eval.pipeline.stage_generate import load_testset
 from gout_eval.storage.artifacts import append_jsonl
 
+# Khởi tạo các model (adapters) từ Backend
+if "adapters" not in st.session_state:
+    st.session_state.adapters = {
+        "PhoGPT": DummyAdapter("PhoGPT"),
+        "Vistral": DummyAdapter("Vistral"),
+        "VinaLLaMA": DummyAdapter("VinaLLaMA")
+    }
+# Khởi tạo Giám khảo
+if "judge" not in st.session_state:
+    st.session_state.judge = GPT4JudgeAdapter()
 
 MODEL_OPTIONS = {
     "Qwen 2.5 0.5B": "Qwen/Qwen2.5-0.5B-Instruct",
@@ -172,8 +185,12 @@ st.title("Gout-LLM: UI noi backend that")
 st.markdown("So sanh da mo hinh, luu run va ve bieu do metric ngay tren giao dien.")
 st.divider()
 
-tab1, tab2 = st.tabs(["Chat truc tiep", "Danh gia hang loat"])
+# TẠO 2 TAB GIAO DIỆN
+tab1, tab2 = st.tabs(["Chat trực tiếp", "Đánh giá Hàng loạt (Batch Eval)"])
 
+# ==========================================
+# TAB 1: CHAT TRỰC TIẾP (GIỮ NGUYÊN CODE CŨ)
+# ==========================================
 with tab1:
     col_settings, col_chat = st.columns([1, 3], gap="large")
 
