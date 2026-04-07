@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pandas as pd
+
 import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parent
