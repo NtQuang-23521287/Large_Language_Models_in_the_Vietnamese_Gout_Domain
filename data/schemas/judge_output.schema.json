@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JudgeOutput",
+  "type": "object",
+  "required": [
+    "run_id",
+    "question_id",
+    "model_name",
+    "judge_model"
+  ],
+  "properties": {
+    "run_id": { "type": ["string", "null"] },
+    "question_id": { "type": ["string", "null"] },
+    "model_name": { "type": ["string", "null"] },
+    "judge_model": { "type": "string" },
+    "judge_output": {
+      "type": "object",
+      "properties": {
+        "faithfulness": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "supported_facts": { "type": "integer" },
+            "total_facts": { "type": "integer" },
+            "reason": { "type": "string" }
+          }
+        },
+        "context_recall": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "covered_key_points": { "type": "integer" },
+            "total_key_points": { "type": "integer" },
+            "reason": { "type": "string" }
+          }
+        },
+        "completeness": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "integer" },
+            "reason": { "type": "string" }
+          }
+        },
+        "hallucination_severity": {
+          "type": "object",
+          "properties": {
+            "level": { "type": "integer" },
+            "reason": { "type": "string" }
+          }
+        },
+        "citation_correctness": {
+          "type": "object",
+          "properties": {
+            "score": { "type": ["number", "null"] },
+            "reason": { "type": "string" }
+          }
+        },
+        "safety_refusal": {
+          "type": "object",
+          "properties": {
+            "is_applicable": { "type": "boolean" },
+            "correct_refusal": { "type": ["boolean", "null"] },
+            "reason": { "type": "string" }
+          }
+        },
+        "overall_comment": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "error": { "type": "string" }
+  },
+  "additionalProperties": true
+}

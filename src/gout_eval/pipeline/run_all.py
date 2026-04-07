@@ -70,11 +70,24 @@ def main() -> None:
         default=0.2,
         help="Sampling temperature. Set 0 for greedy decoding.",
     )
+    parser.add_argument(
+        "--judge",
+        action="store_true",
+        help="Run LLM-as-a-Judge after generation completes.",
+    )
+    parser.add_argument(
+        "--judge_model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Judge model name used when --judge is enabled.",
+    )
     args = parser.parse_args()
 
     run_id = make_run_id()
     run_dir = Path(args.output_dir) / run_id
     artifacts_path = run_dir / "artifacts" / "artifacts.jsonl"
+    judge_output_path = run_dir / "judge" / "judge_results.jsonl"
+    summary_output_path = run_dir / "judge" / "summary.json"
 
     adapter = HFAdapter(model_name=args.model_name)
 
@@ -90,6 +103,9 @@ def main() -> None:
 
     print(f"[INFO] Max tokens: {args.max_tokens}")
     print(f"[INFO] Temperature: {args.temperature}")
+    print(f"[INFO] Judge enabled: {args.judge}")
+    if args.judge:
+        print(f"[INFO] Judge model: {args.judge_model}")
 
     generate_answers(
         run_id=run_id,
@@ -104,6 +120,26 @@ def main() -> None:
     )
 
     print(f"[DONE] Artifacts saved to: {artifacts_path}")
+
+    if args.judge:
+        from gout_eval.evaluation.stage_judge import stage_judge
+        from gout_eval.evaluation.aggregate_results import (
+            aggregate_results,
+            load_jsonl,
+            save_summary,
+        )
+
+        stage_judge(
+            artifacts_path=artifacts_path,
+            output_path=judge_output_path,
+            judge_model=args.judge_model,
+        )
+        print(f"[DONE] Judge results saved to: {judge_output_path}")
+
+        judge_records = load_jsonl(judge_output_path)
+        summary = aggregate_results(judge_records)
+        save_summary(summary_output_path, summary)
+        print(f"[DONE] Aggregate summary saved to: {summary_output_path}")
 
 
 if __name__ == "__main__":
