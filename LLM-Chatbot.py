@@ -2,6 +2,13 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+SRC_ROOT = PROJECT_ROOT / "src"
+
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
 from datetime import datetime
 from typing import Any, Dict, List
 import time
@@ -28,12 +35,6 @@ if "adapters" not in st.session_state:
 # Khởi tạo Giám khảo
 if "judge" not in st.session_state:
     st.session_state.judge = GPT4JudgeAdapter()
-
-PROJECT_ROOT = Path(__file__).resolve().parent
-SRC_ROOT = PROJECT_ROOT / "src"
-
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
 
 MODEL_OPTIONS = {
     "Qwen 2.5 0.5B": "Qwen/Qwen2.5-0.5B-Instruct",
