@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List
-
-import pandas as pd
-
-import streamlit as st
 import time
-import pandas as pd
-from pathlib import Path
 
-# --- IMPORT BACKEND MODULES ---
-from src.gout_eval.generation.prompt_builder import build_prompt
-from src.gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
-from src.gout_eval.pipeline.stage_generate import load_testset
+import pandas as pd
+import streamlit as st
+
+from gout_eval.generation.prompt_builder import build_prompt
+from gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
+from gout_eval.pipeline.stage_generate import load_testset
+from gout_eval.adapters.hf_adapter import HFAdapter
+from gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
+from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
+from gout_eval.generation.retriever import FaissRetriever
+from gout_eval.storage.artifacts import append_jsonl
 
 # Khởi tạo các model (adapters) từ Backend
 if "adapters" not in st.session_state:
@@ -33,16 +34,6 @@ SRC_ROOT = PROJECT_ROOT / "src"
 
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
-
-from gout_eval.generation.prompt_builder import build_prompt
-from gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
-from gout_eval.pipeline.stage_generate import load_testset
-from gout_eval.adapters.hf_adapter import HFAdapter
-from gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
-from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
-from gout_eval.generation.retriever import FaissRetriever
-from gout_eval.storage.artifacts import append_jsonl
-
 
 MODEL_OPTIONS = {
     "Qwen 2.5 0.5B": "Qwen/Qwen2.5-0.5B-Instruct",
