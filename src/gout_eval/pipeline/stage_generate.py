@@ -14,6 +14,34 @@ try:
 except Exception:
     FaissRetriever = None  # type: ignore
 
+
+def normalize_sample(raw_sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    """
+    Normalize different testset schemas into one internal format.
+
+    Supported variants:
+    - question_id, question, risk_level, ground_truth
+    - cau_hoi, cap_do, ground_truth
+    """
+    question = raw_sample.get("question") or raw_sample.get("cau_hoi")
+    if not question:
+        raise ValueError(f"Sample at index {idx} is missing 'question'/'cau_hoi'.")
+
+    question_id = raw_sample.get("question_id")
+    if not question_id:
+        question_id = f"Q_{idx + 1:03d}"
+
+    risk_level = raw_sample.get("risk_level", raw_sample.get("cap_do"))
+    ground_truth = raw_sample.get("ground_truth", "")
+
+    return {
+        "question_id": question_id,
+        "question": question,
+        "ground_truth": ground_truth,
+        "risk_level": risk_level,
+    }
+
+
 def load_testset(path: str | Path) -> List[Dict[str, Any]]:
     path = Path(path)
     

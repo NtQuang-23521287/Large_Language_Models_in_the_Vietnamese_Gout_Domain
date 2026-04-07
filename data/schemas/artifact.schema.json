@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Artifact",
+  "type": "object",
+  "required": [
+    "run_id",
+    "question_id",
+    "question",
+    "prompt",
+    "answer",
+    "meta"
+  ],
+  "properties": {
+    "run_id": { "type": "string" },
+    "question_id": { "type": "string" },
+    "question": { "type": "string" },
+    "risk_level": { "type": ["string", "integer", "null"] },
+    "ground_truth": { "type": "string" },
+    "contexts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "retrieved_chunks": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "prompt": { "type": "string" },
+    "answer": { "type": "string" },
+    "meta": { "type": "object" },
+    "generation_config": { "type": "object" }
+  },
+  "additionalProperties": true
+}
