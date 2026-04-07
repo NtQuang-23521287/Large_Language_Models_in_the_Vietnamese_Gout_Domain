@@ -7,6 +7,25 @@ from typing import Any, Dict, List
 
 import pandas as pd
 import streamlit as st
+import time
+import pandas as pd
+from pathlib import Path
+
+# --- IMPORT BACKEND MODULES ---
+from src.gout_eval.generation.prompt_builder import build_prompt
+from src.gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
+from src.gout_eval.pipeline.stage_generate import load_testset
+
+# Khởi tạo các model (adapters) từ Backend
+if "adapters" not in st.session_state:
+    st.session_state.adapters = {
+        "PhoGPT": DummyAdapter("PhoGPT"),
+        "Vistral": DummyAdapter("Vistral"),
+        "VinaLLaMA": DummyAdapter("VinaLLaMA")
+    }
+# Khởi tạo Giám khảo
+if "judge" not in st.session_state:
+    st.session_state.judge = GPT4JudgeAdapter()
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -171,8 +190,12 @@ st.title("Gout-LLM: UI noi backend that")
 st.markdown("So sanh da mo hinh, luu run va ve bieu do metric ngay tren giao dien.")
 st.divider()
 
-tab1, tab2 = st.tabs(["Chat truc tiep", "Danh gia hang loat"])
+# TẠO 2 TAB GIAO DIỆN
+tab1, tab2 = st.tabs(["Chat trực tiếp", "Đánh giá Hàng loạt (Batch Eval)"])
 
+# ==========================================
+# TAB 1: CHAT TRỰC TIẾP (GIỮ NGUYÊN CODE CŨ)
+# ==========================================
 with tab1:
     col_settings, col_chat = st.columns([1, 3], gap="large")
 
