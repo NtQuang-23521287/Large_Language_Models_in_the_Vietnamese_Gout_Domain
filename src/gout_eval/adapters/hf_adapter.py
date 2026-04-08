@@ -19,30 +19,53 @@ class HFAdapter(BaseAdapter):
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
 
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-            )
-
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
-
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-                dtype=self.dtype,
-                low_cpu_mem_usage=True,
-            )
-
-            self.model.to(self.device)
-            self.model.eval()
+            self._load_model_stack(force_download=False)
         except Exception as exc:
-            trace = traceback.format_exc()
-            raise RuntimeError(
-                f"Failed to load model '{model_name}' on {self.device}: {exc}\n{trace}"
-            ) from exc
+            if self._should_retry_remote_code(exc):
+                print(f"[WARN] Retrying model load with force_download for {model_name}")
+                try:
+                    self._load_model_stack(force_download=True)
+                except Exception as retry_exc:
+                    trace = traceback.format_exc()
+                    raise RuntimeError(
+                        f"Failed to load model '{model_name}' on {self.device} after remote-code retry: {retry_exc}\n{trace}"
+                    ) from retry_exc
+            else:
+                trace = traceback.format_exc()
+                raise RuntimeError(
+                    f"Failed to load model '{model_name}' on {self.device}: {exc}\n{trace}"
+                ) from exc
 
         print(f"[INFO] Model loaded on device: {self.device}")
+
+    def _load_model_stack(self, *, force_download: bool) -> None:
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            trust_remote_code=True,
+            force_download=force_download,
+        )
+
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            trust_remote_code=True,
+            dtype=self.dtype,
+            low_cpu_mem_usage=True,
+            force_download=force_download,
+        )
+
+        self.model.to(self.device)
+        self.model.eval()
+
+    def _should_retry_remote_code(self, exc: Exception) -> bool:
+        message = str(exc)
+        if self.model_name != "vinai/PhoGPT-4B-Chat":
+            return False
+        if not isinstance(exc, FileNotFoundError):
+            return False
+        return "flash_attn_triton.py" in message or "transformers_modules/vinai/PhoGPT" in message
 
     def generate(self, prompt: str, **kwargs: Any) -> GenerationResult:
         max_tokens = kwargs.get("max_tokens", 128)
