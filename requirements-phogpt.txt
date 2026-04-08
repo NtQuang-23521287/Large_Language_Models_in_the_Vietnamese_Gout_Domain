@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+torch
+transformers>=4.40,<5.0
+huggingface-hub>=0.34,<1.0
+accelerate
+sentencepiece
+einops
