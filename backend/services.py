@@ -17,6 +17,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from gout_eval.adapters.api_adapter import APIAdapter
 from gout_eval.adapters.base import BaseAdapter
+from gout_eval.adapters.gguf_adapter import GGUFAdapter
 from gout_eval.adapters.hf_adapter import HFAdapter
 from gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
 from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
@@ -30,6 +31,11 @@ logger = logging.getLogger(__name__)
 PHOGPT_MODEL_NAME = "vinai/PhoGPT-4B-Chat"
 PHOGPT_BASE_URL = os.getenv("PHOGPT_BASE_URL", "").strip()
 PHOGPT_AUTH_HEADER = os.getenv("PHOGPT_AUTH_HEADER", "").strip() or None
+
+GGUF_MODEL_PATH = os.getenv("GGUF_MODEL_PATH", "").strip()
+GGUF_N_CTX = int(os.getenv("GGUF_N_CTX", "4096"))
+GGUF_N_GPU_LAYERS = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
+GGUF_N_THREADS = int(os.getenv("GGUF_N_THREADS", "4"))
 
 try:
     import torch
@@ -70,6 +76,17 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "size_class": "7B",
         "notes": "Model lon, tai nhieu shard va co dau hieu can custom generation code.",
     },
+    "GGUF Local": {
+        "model_name": GGUF_MODEL_PATH if GGUF_MODEL_PATH else "",
+        "status": "stable" if GGUF_MODEL_PATH else "config-required",
+        "recommended": bool(GGUF_MODEL_PATH),
+        "size_class": "local",
+        "notes": (
+            f"Dang chay local GGUF: {GGUF_MODEL_PATH}"
+            if GGUF_MODEL_PATH
+            else "Nhap duong dan .gguf truc tiep tu frontend hoac set GGUF_MODEL_PATH."
+        ),
+    },
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
@@ -102,6 +119,50 @@ def get_testset_path() -> Path:
     return TESTSET_PATH
 
 
+def _is_gguf_model(model_name: str) -> bool:
+    lower_name = model_name.lower().strip()
+    return lower_name.endswith(".gguf") or lower_name.startswith("gguf:")
+
+
+def _normalize_gguf_path(model_name: str) -> str:
+    normalized = model_name.strip()
+    if normalized.lower().startswith("gguf:"):
+        normalized = normalized.split(":", 1)[1].strip()
+    return str(Path(normalized).expanduser())
+
+
+def _validate_gguf_path(model_name: str) -> str:
+    path_str = _normalize_gguf_path(model_name)
+    path = Path(path_str)
+
+    if not path.exists():
+        raise ServiceError(f"GGUF file not found: {path}")
+
+    if not path.is_file():
+        raise ServiceError(f"GGUF path is not a file: {path}")
+
+    if path.suffix.lower() != ".gguf":
+        raise ServiceError(f"Invalid GGUF file extension: {path}")
+
+    return str(path.resolve())
+
+
+def _looks_like_local_path(model_name: str) -> bool:
+    name = model_name.strip()
+
+    if not name:
+        return False
+
+    if name.startswith("/") or name.startswith("./") or name.startswith("../") or name.startswith("~"):
+        return True
+
+    if "\\" in name:
+        return True
+
+    path = Path(name)
+    return len(path.parts) > 1
+
+
 def list_models() -> List[Dict[str, str]]:
     models: List[Dict[str, Any]] = []
     for label, info in MODEL_CATALOG.items():
@@ -122,35 +183,44 @@ def resolve_model_name(model_name: str) -> str:
     """
     Accept either a friendly label or a raw HF/local model path.
     """
-    if model_name in MODEL_CATALOG:
-        return str(MODEL_CATALOG[model_name]["model_name"])
-    return model_name
+    normalized = model_name.strip()
+    if normalized in MODEL_CATALOG:
+        return str(MODEL_CATALOG[normalized]["model_name"]).strip()
+    return normalized
 
 
 def cleanup_model_cache(keep_key: Optional[str] = None) -> None:
     """
-    For đồ án/demo use: keep only one loaded model at a time to save VRAM/RAM.
+    For do an/demo use: keep only one loaded model at a time to save VRAM/RAM.
     """
     global _MODEL_CACHE, _CURRENT_MODEL_KEY
 
-    keys_to_remove = [k for k in _MODEL_CACHE.keys() if k != keep_key]
+    keys_to_remove = [k for k in list(_MODEL_CACHE.keys()) if k != keep_key]
     for key in keys_to_remove:
         try:
-            del _MODEL_CACHE[key]
-        except KeyError:
-            pass
+            adapter = _MODEL_CACHE.pop(key)
+            llm = getattr(adapter, "llm", None)
+            if llm is not None:
+                del llm
+            del adapter
+        except Exception:
+            logger.warning("Failed to fully cleanup model cache for key=%s", key, exc_info=True)
 
     gc.collect()
+
     if torch is not None and torch.cuda.is_available():
         try:
             torch.cuda.empty_cache()
         except Exception:
-            pass
+            logger.warning("torch.cuda.empty_cache() failed", exc_info=True)
 
     _CURRENT_MODEL_KEY = keep_key
 
 
 def _build_adapter(resolved_name: str) -> BaseAdapter:
+    if not resolved_name:
+        raise ServiceError("Model name/path is empty.")
+
     if resolved_name == PHOGPT_MODEL_NAME:
         if not PHOGPT_BASE_URL:
             raise ServiceError(
@@ -160,6 +230,21 @@ def _build_adapter(resolved_name: str) -> BaseAdapter:
             base_url=PHOGPT_BASE_URL,
             model_name=resolved_name,
             auth_header=PHOGPT_AUTH_HEADER,
+        )
+
+    if _is_gguf_model(resolved_name):
+        gguf_path = _validate_gguf_path(resolved_name)
+        return GGUFAdapter(
+            model_path=gguf_path,
+            n_ctx=GGUF_N_CTX,
+            n_gpu_layers=GGUF_N_GPU_LAYERS,
+            n_threads=GGUF_N_THREADS,
+        )
+
+    if _looks_like_local_path(resolved_name):
+        raise ServiceError(
+            f"Local path detected but not a GGUF file: '{resolved_name}'. "
+            "If you want to use a GGUF model, provide a valid .gguf file path."
         )
 
     return HFAdapter(model_name=resolved_name)
@@ -173,11 +258,15 @@ def get_adapter(model_name: str) -> BaseAdapter:
 
     resolved_name = resolve_model_name(model_name)
 
+    if not resolved_name:
+        raise ServiceError("Model name/path is empty.")
+
+    if _CURRENT_MODEL_KEY != resolved_name:
+        cleanup_model_cache(keep_key=None)
+
     if resolved_name in _MODEL_CACHE:
         _CURRENT_MODEL_KEY = resolved_name
         return _MODEL_CACHE[resolved_name]
-
-    cleanup_model_cache(keep_key=None)
 
     try:
         adapter = _build_adapter(resolved_name)
@@ -348,7 +437,7 @@ def run_batch_eval(
         raise ServiceError(f"Testset is empty: {TESTSET_PATH}")
 
     normalized = [normalize_test_row(sample, idx) for idx, sample in enumerate(raw_testset)]
-    selected_samples = normalized[:limit]
+    selected_samples = normalized[:limit] if limit > 0 else normalized
 
     results: List[Dict[str, Any]] = []
     judge_records: List[Dict[str, Any]] = []

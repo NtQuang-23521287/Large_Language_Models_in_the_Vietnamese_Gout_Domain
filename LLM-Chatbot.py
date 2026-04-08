@@ -1,114 +1,96 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List
+import json
+import os
+from typing import Any, Dict, List, Optional
 
-import pandas as pd
 import requests
 import streamlit as st
 
-
-st.set_page_config(
-    page_title="Gout-LLM Chat & Eval",
-    page_icon="🩺",
-    layout="wide",
-)
-
-BACKEND_URL = st.secrets["BACKEND_URL"].rstrip("/")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
-def get_backend_url() -> str:
-    return BACKEND_URL
-
-
-@st.cache_data(ttl=60)
-def fetch_models() -> List[Dict[str, str]]:
-    response = requests.get(f"{get_backend_url()}/models", timeout=30)
+def api_get(path: str) -> Dict[str, Any]:
+    response = requests.get(f"{BACKEND_URL}{path}", timeout=300)
     response.raise_for_status()
-    data = response.json()
+    return response.json()
+
+
+def api_post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    response = requests.post(f"{BACKEND_URL}{path}", json=payload, timeout=300)
+    response.raise_for_status()
+    return response.json()
+
+
+def safe_api_get(path: str) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    try:
+        return api_get(path), None
+    except requests.RequestException as exc:
+        detail = ""
+        try:
+            detail = exc.response.text if exc.response is not None else ""
+        except Exception:
+            detail = ""
+        return None, detail or str(exc)
+
+
+def safe_api_post(path: str, payload: Dict[str, Any]) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    try:
+        return api_post(path, payload), None
+    except requests.RequestException as exc:
+        detail = ""
+        try:
+            detail = exc.response.text if exc.response is not None else ""
+        except Exception:
+            detail = ""
+        return None, detail or str(exc)
+
+
+def fetch_models() -> List[Dict[str, Any]]:
+    data, error = safe_api_get("/models")
+    if error or data is None:
+        st.error(f"Khong the lay danh sach model tu backend: {error}")
+        return []
     return data.get("models", [])
 
 
-@st.cache_data(ttl=30)
-def fetch_health() -> Dict[str, Any]:
-    response = requests.get(f"{get_backend_url()}/health", timeout=30)
-    response.raise_for_status()
-    return response.json()
-
-
-def call_generate_api(payload: Dict[str, Any]) -> Dict[str, Any]:
-    response = requests.post(
-        f"{get_backend_url()}/generate",
-        json=payload,
-        timeout=300,
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def call_batch_eval_api(payload: Dict[str, Any]) -> Dict[str, Any]:
-    response = requests.post(
-        f"{get_backend_url()}/batch-eval",
-        json=payload,
-        timeout=1800,
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def extract_model_labels(models: List[Dict[str, str]]) -> List[str]:
-    labels: List[str] = []
+def get_model_info(models: List[Dict[str, Any]], selected_value: str) -> Optional[Dict[str, Any]]:
     for item in models:
-        label = item.get("label")
-        if label:
-            labels.append(label)
-    return labels
-
-
-def get_model_info(models: List[Dict[str, Any]], label: str) -> Dict[str, Any]:
-    for item in models:
-        if item.get("label") == label:
+        if item.get("label") == selected_value or item.get("model_name") == selected_value:
             return item
-    return {}
+    return None
 
 
-def extract_http_error(exc: requests.HTTPError) -> str:
-    response = exc.response
-    if response is None:
-        return str(exc)
-
-    try:
-        data = response.json()
-        detail = data.get("detail")
-        if detail:
-            return f"HTTP {response.status_code}: {detail}"
-    except Exception:
-        pass
-
-    text = response.text.strip()
-    if text:
-        return f"HTTP {response.status_code}: {text}"
-    return str(exc)
-
-
-def render_model_status(info: Dict[str, Any]) -> None:
-    if not info:
+def render_model_status(model_info: Optional[Dict[str, Any]]) -> None:
+    if not model_info:
         return
 
-    status = info.get("status", "unknown")
-    size_class = info.get("size_class", "unknown")
-    recommended = info.get("recommended", False)
-    notes = info.get("notes", "")
+    status = str(model_info.get("status", "unknown"))
+    size_class = model_info.get("size_class", "")
+    notes = model_info.get("notes", "")
+    recommended = bool(model_info.get("recommended", False))
+    model_name = model_info.get("model_name", "")
 
-    if recommended:
-        st.success(f"Khuyen nghi: {status} | {size_class}")
-    elif status == "blocked":
-        st.error(f"Khong khuyen nghi: {status} | {size_class}")
+    if status == "stable":
+        st.success(f"Status: {status} | Size: {size_class} | Recommended: {recommended}")
+    elif status in {"experimental", "service"}:
+        st.warning(f"Status: {status} | Size: {size_class} | Recommended: {recommended}")
+    elif status in {"blocked", "config-required"}:
+        st.error(f"Status: {status} | Size: {size_class} | Recommended: {recommended}")
     else:
-        st.warning(f"Trang thai: {status} | {size_class}")
+        st.info(f"Status: {status} | Size: {size_class} | Recommended: {recommended}")
 
+    if model_name:
+        st.caption(f"Resolved model: `{model_name}`")
     if notes:
         st.caption(notes)
+
+
+def normalize_model_input(selected_label: str, custom_model_path: str) -> str:
+    custom = custom_model_path.strip()
+    if custom:
+        return custom
+    return selected_label.strip()
 
 
 def build_generate_payload(
@@ -155,253 +137,291 @@ def build_batch_payload(
 
 def render_contexts(contexts: List[str]) -> None:
     if not contexts:
+        st.info("Khong su dung context RAG.")
         return
 
-    with st.expander("Retrieved contexts", expanded=False):
+    with st.expander("Contexts retrieved", expanded=False):
         for idx, ctx in enumerate(contexts, start=1):
-            st.markdown(f"**Context {idx}**")
-            st.write(ctx)
+            st.markdown(f"**Chunk {idx}**")
+            st.code(ctx, language="text")
 
 
-def render_health_badge() -> None:
-    try:
-        health = fetch_health()
-        status = health.get("status", "unknown")
-        if status == "ok":
-            st.success(f"Backend OK | {get_backend_url()}")
-        else:
-            st.warning(f"Backend status: {status}")
-    except Exception as exc:
-        st.error(f"Không kết nối được backend: {exc}")
+def render_meta(meta: Dict[str, Any]) -> None:
+    if not meta:
+        return
+
+    with st.expander("Generation metadata", expanded=False):
+        st.json(meta)
 
 
-def init_chat_state() -> None:
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+def render_batch_results(result: Dict[str, Any]) -> None:
+    st.success(f"Run xong. Run ID: {result.get('run_id', '')}")
+    st.write(f"So mau da chay: {result.get('num_samples', 0)}")
+
+    artifacts_path = result.get("artifacts_path")
+    judge_path = result.get("judge_path")
+    summary_path = result.get("summary_path")
+
+    if artifacts_path:
+        st.caption(f"Artifacts: `{artifacts_path}`")
+    if judge_path:
+        st.caption(f"Judge results: `{judge_path}`")
+    if summary_path:
+        st.caption(f"Summary: `{summary_path}`")
+
+    summary = result.get("summary")
+    if summary:
+        st.subheader("Summary")
+        st.json(summary)
+
+    results = result.get("results", [])
+    if results:
+        st.subheader("Batch outputs")
+        for item in results:
+            with st.expander(f"{item.get('question_id', '')} | {item.get('risk_level', '')}", expanded=False):
+                st.markdown("**Question**")
+                st.write(item.get("question", ""))
+
+                st.markdown("**Answer**")
+                st.write(item.get("answer", ""))
+
+                judge_output = item.get("judge_output")
+                if judge_output is not None:
+                    st.markdown("**Judge output**")
+                    st.json(judge_output)
 
 
-def render_chat_history() -> None:
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "user":
-                st.markdown(msg["content"])
-            else:
-                if msg.get("error"):
-                    st.error(msg["error"])
-                else:
-                    st.write(msg.get("answer", ""))
-                    render_contexts(msg.get("contexts", []))
-                    meta = msg.get("meta")
-                    if meta:
-                        with st.expander("Meta", expanded=False):
-                            st.json(meta)
-
-
-def add_assistant_error(message: str) -> None:
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "error": message,
-        }
+def main() -> None:
+    st.set_page_config(
+        page_title="Vietnamese Gout LLM Chatbot",
+        page_icon="💬",
+        layout="wide",
     )
 
+    st.title("Vietnamese Gout LLM Chatbot")
+    st.caption(f"Backend: {BACKEND_URL}")
 
-def add_assistant_answer(answer: str, contexts: List[str], meta: Dict[str, Any]) -> None:
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "answer": answer,
-            "contexts": contexts,
-            "meta": meta,
-        }
-    )
-
-
-def batch_summary_to_dataframe(summary: Dict[str, Any]) -> pd.DataFrame:
-    rows: List[Dict[str, Any]] = []
-    for model_name, metrics in summary.get("models", {}).items():
-        row = {"model_name": model_name}
-        row.update(metrics)
-        rows.append(row)
-    return pd.DataFrame(rows)
-
-
-st.title("Gout-LLM Frontend")
-st.caption("Streamlit frontend gọi FastAPI backend trên Google Cloud.")
-render_health_badge()
-st.divider()
-
-try:
     available_models = fetch_models()
-    model_labels = extract_model_labels(available_models)
-except Exception as exc:
-    st.error(f"Không tải được danh sách model từ backend: {exc}")
-    st.stop()
+    model_labels = [item["label"] for item in available_models if item.get("label")]
 
-if not model_labels:
-    st.error("Backend không trả về model nào.")
-    st.stop()
+    if not model_labels:
+        st.warning("Khong co model nao tu backend. Kiem tra backend truoc.")
+        return
 
-tab1, tab2 = st.tabs(["Chat trực tiếp", "Đánh giá hàng loạt"])
+    tab_chat, tab_batch, tab_models = st.tabs(["Chat", "Batch Evaluation", "Model Catalog"])
 
-with tab1:
-    init_chat_state()
+    with tab_chat:
+        st.subheader("Chat with model")
 
-    col_settings, col_chat = st.columns([1, 3], gap="large")
+        col1, col2 = st.columns([1, 1])
 
-    with col_settings:
-        st.subheader("Cấu hình")
-        selected_model = st.selectbox(
-            "Model",
-            model_labels,
-            index=0,
+        with col1:
+            selected_model = st.selectbox(
+                "Model",
+                model_labels,
+                index=0,
+                key="chat_model_select",
+            )
+            render_model_status(get_model_info(available_models, selected_model))
+
+            custom_model_path = st.text_input(
+                "Hoặc nhập model path tùy chỉnh",
+                value="",
+                placeholder="/models/vinallama-q4_k_m.gguf",
+                help="Hỗ trợ file GGUF hoặc model path khác. Với GGUF, nhập trực tiếp đường dẫn file .gguf.",
+                key="chat_custom_model_path",
+            ).strip()
+
+            effective_model = normalize_model_input(selected_model, custom_model_path)
+
+            use_rag_chat = st.checkbox("Use RAG", value=True, key="chat_use_rag")
+            top_k_chat = st.slider("Top-k contexts", min_value=1, max_value=10, value=3, key="chat_top_k")
+            max_tokens_chat = st.slider("Max tokens", min_value=32, max_value=2048, value=256, step=32, key="chat_max_tokens")
+            temperature_chat = st.slider("Temperature", min_value=0.0, max_value=1.5, value=0.2, step=0.1, key="chat_temp")
+
+        with col2:
+            st.markdown("**Model sẽ dùng**")
+            st.code(effective_model or "(trong)", language="text")
+
+            if effective_model.lower().endswith(".gguf") or effective_model.lower().startswith("gguf:"):
+                st.info("Đang dùng GGUF local inference.")
+            else:
+                st.info("Đang dùng model label hoặc Hugging Face model name.")
+
+        prompt = st.text_area(
+            "Câu hỏi",
+            height=180,
+            placeholder="Ví dụ: Bệnh gout nên ăn gì và khi nào cần đi khám?",
+            key="chat_question",
         )
-        render_model_status(get_model_info(available_models, selected_model))
-        use_rag_chat = st.checkbox("Bật RAG", value=True)
-        top_k_chat = st.slider("Top-k", min_value=1, max_value=5, value=2)
-        max_tokens_chat = st.slider("Max tokens", min_value=32, max_value=512, value=128, step=32)
-        temperature_chat = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
 
-        if st.button("Xóa lịch sử chat"):
-            st.session_state.messages = []
-            st.rerun()
-
-    with col_chat:
-        render_chat_history()
-
-        prompt = st.chat_input("Nhập câu hỏi về bệnh gout...")
-        if prompt:
-            st.session_state.messages.append(
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
+        if st.button("Generate answer", type="primary", key="chat_generate_btn"):
+            payload = build_generate_payload(
+                model_name=effective_model,
+                question=prompt,
+                use_rag=use_rag_chat,
+                top_k=top_k_chat,
+                max_tokens=max_tokens_chat,
+                temperature=temperature_chat,
             )
 
-            with st.chat_message("user"):
-                st.markdown(prompt)
+            with st.spinner("Dang generate..."):
+                result, error = safe_api_post("/generate", payload)
 
-            with st.chat_message("assistant"):
-                with st.spinner("Đang sinh câu trả lời..."):
-                    try:
-                        payload = build_generate_payload(
-                            model_name=selected_model,
-                            question=prompt,
-                            use_rag=use_rag_chat,
-                            top_k=top_k_chat,
-                            max_tokens=max_tokens_chat,
-                            temperature=temperature_chat,
-                        )
-                        result = call_generate_api(payload)
+            if error or result is None:
+                st.error(f"Generate that bai: {error}")
+            else:
+                st.subheader("Answer")
+                st.write(result.get("answer", ""))
 
-                        answer = result.get("answer", "")
-                        contexts = result.get("contexts", [])
-                        meta = result.get("meta", {})
+                contexts = result.get("contexts", [])
+                meta = result.get("meta", {})
+                prompt_text = result.get("prompt", "")
 
-                        st.write(answer)
-                        render_contexts(contexts)
-                        if meta:
-                            with st.expander("Meta", expanded=False):
-                                st.json(meta)
+                render_contexts(contexts)
+                render_meta(meta)
 
-                        add_assistant_answer(answer, contexts, meta)
+                with st.expander("Prompt sent to model", expanded=False):
+                    st.code(prompt_text, language="text")
 
-                    except requests.HTTPError as exc:
-                        error_text = extract_http_error(exc)
-                        st.error(error_text)
-                        add_assistant_error(error_text)
-                    except Exception as exc:
-                        error_text = f"Lỗi gọi backend: {exc}"
-                        st.error(error_text)
-                        add_assistant_error(error_text)
+    with tab_batch:
+        st.subheader("Run batch evaluation")
 
-with tab2:
-    st.subheader("Đánh giá hàng loạt")
+        col1, col2 = st.columns([1, 1])
 
-    selected_batch_model = st.selectbox(
-        "Model để đánh giá",
-        model_labels,
-        index=0,
-        key="batch_model",
-    )
-    render_model_status(get_model_info(available_models, selected_batch_model))
-    use_rag_batch = st.checkbox("Bật RAG cho batch", value=True, key="batch_rag")
-    top_k_batch = st.slider("Top-k batch", min_value=1, max_value=5, value=2, key="batch_top_k")
-    max_tokens_batch = st.slider(
-        "Max tokens batch",
-        min_value=32,
-        max_value=512,
-        value=128,
-        step=32,
-        key="batch_max_tokens",
-    )
-    temperature_batch = st.slider(
-        "Temperature batch",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.2,
-        step=0.1,
-        key="batch_temperature",
-    )
-    judge_enabled = st.checkbox("Bật LLM-as-a-Judge", value=False)
-    judge_model = st.text_input("Judge model", value="gpt-4o-mini")
-    limit = st.slider("Số câu hỏi chạy batch", min_value=1, max_value=20, value=5)
+        with col1:
+            selected_batch_model = st.selectbox(
+                "Model để đánh giá",
+                model_labels,
+                index=0,
+                key="batch_model_select",
+            )
+            render_model_status(get_model_info(available_models, selected_batch_model))
 
-    if st.button("Bắt đầu chạy batch", type="primary"):
-        with st.spinner("Đang chạy batch eval... việc này có thể mất một lúc."):
-            try:
-                payload = build_batch_payload(
-                    model_name=selected_batch_model,
-                    use_rag=use_rag_batch,
-                    top_k=top_k_batch,
-                    max_tokens=max_tokens_batch,
-                    temperature=temperature_batch,
-                    judge_enabled=judge_enabled,
-                    judge_model=judge_model,
-                    limit=limit,
-                )
-                result = call_batch_eval_api(payload)
+            custom_model_path_batch = st.text_input(
+                "Hoặc nhập model path đánh giá",
+                value="",
+                placeholder="/models/vinallama-q4_k_m.gguf",
+                help="Có thể nhập trực tiếp đường dẫn file GGUF hoặc model path khác.",
+                key="batch_custom_model_path",
+            ).strip()
 
-                st.success(f"Hoàn tất run: {result['run_id']}")
-                st.caption(f"Số mẫu: {result['num_samples']}")
-                st.caption(f"Artifacts: `{result['artifacts_path']}`")
+            effective_batch_model = normalize_model_input(selected_batch_model, custom_model_path_batch)
 
-                if result.get("judge_path"):
-                    st.caption(f"Judge results: `{result['judge_path']}`")
-                if result.get("summary_path"):
-                    st.caption(f"Summary: `{result['summary_path']}`")
+            use_rag_batch = st.checkbox("Use RAG for batch", value=True, key="batch_use_rag")
+            top_k_batch = st.slider("Top-k contexts (batch)", min_value=1, max_value=10, value=3, key="batch_top_k")
+            max_tokens_batch = st.slider(
+                "Max tokens (batch)",
+                min_value=32,
+                max_value=2048,
+                value=256,
+                step=32,
+                key="batch_max_tokens",
+            )
+            temperature_batch = st.slider(
+                "Temperature (batch)",
+                min_value=0.0,
+                max_value=1.5,
+                value=0.2,
+                step=0.1,
+                key="batch_temp",
+            )
 
-                rows = result.get("results", [])
-                if rows:
-                    df = pd.DataFrame(rows)
-                    st.subheader("Kết quả chi tiết")
-                    st.dataframe(df, width="stretch")
+        with col2:
+            judge_enabled = st.checkbox("Enable judge", value=False, key="batch_judge_enabled")
+            judge_model = st.text_input(
+                "Judge model",
+                value="gpt-4o-mini",
+                help="Tên model dùng để judge nếu backend hỗ trợ.",
+                key="batch_judge_model",
+            )
+            limit = st.number_input(
+                "Số mẫu muốn chạy",
+                min_value=0,
+                value=10,
+                step=1,
+                help="Nhập 0 để chạy toàn bộ testset.",
+                key="batch_limit",
+            )
 
-                summary = result.get("summary")
-                if summary:
-                    summary_df = batch_summary_to_dataframe(summary)
-                    if not summary_df.empty:
-                        st.subheader("Tổng hợp metric theo model")
-                        st.dataframe(summary_df, width="stretch")
+            st.markdown("**Model sẽ dùng**")
+            st.code(effective_batch_model or "(trong)", language="text")
 
-                        metric_columns = [
-                            "faithfulness_mean",
-                            "context_recall_mean",
-                            "completeness_mean",
-                            "citation_correctness_mean",
-                            "hallucination_level_mean",
-                            "safety_refusal_rate",
-                        ]
-                        available_metric_columns = [col for col in metric_columns if col in summary_df.columns]
-                        if available_metric_columns:
-                            chart_df = summary_df.set_index("model_name")[available_metric_columns]
-                            st.subheader("Biểu đồ metric")
-                            st.bar_chart(chart_df)
+            if effective_batch_model.lower().endswith(".gguf") or effective_batch_model.lower().startswith("gguf:"):
+                st.info("Batch sẽ dùng GGUF local inference.")
+            else:
+                st.info("Batch sẽ dùng model label hoặc Hugging Face model name.")
 
-            except requests.HTTPError as exc:
-                st.error(extract_http_error(exc))
-            except Exception as exc:
-                st.error(f"Lỗi gọi backend batch-eval: {exc}")
+        if st.button("Run batch evaluation", type="primary", key="batch_run_btn"):
+            payload = build_batch_payload(
+                model_name=effective_batch_model,
+                use_rag=use_rag_batch,
+                top_k=top_k_batch,
+                max_tokens=max_tokens_batch,
+                temperature=temperature_batch,
+                judge_enabled=judge_enabled,
+                judge_model=judge_model,
+                limit=int(limit),
+            )
 
-st.divider()
-st.caption(f"Frontend time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            with st.spinner("Dang chay batch evaluation..."):
+                result, error = safe_api_post("/batch-eval", payload)
+
+            if error or result is None:
+                st.error(f"Batch evaluation that bai: {error}")
+            else:
+                render_batch_results(result)
+
+    with tab_models:
+        st.subheader("Available models")
+        for item in available_models:
+            with st.expander(item.get("label", "Unknown model"), expanded=False):
+                st.json(item)
+
+        st.subheader("Backend health check")
+        health, error = safe_api_get("/health")
+        if error or health is None:
+            st.error(f"Khong the goi /health: {error}")
+        else:
+            st.json(health)
+
+        st.subheader("Example payloads")
+        st.markdown("**/generate**")
+        st.code(
+            json.dumps(
+                build_generate_payload(
+                    model_name="/models/vinallama-q4_k_m.gguf",
+                    question="Toi bi gout thi nen an gi?",
+                    use_rag=True,
+                    top_k=3,
+                    max_tokens=256,
+                    temperature=0.2,
+                ),
+                ensure_ascii=False,
+                indent=2,
+            ),
+            language="json",
+        )
+
+        st.markdown("**/batch-eval**")
+        st.code(
+            json.dumps(
+                build_batch_payload(
+                    model_name="/models/vinallama-q4_k_m.gguf",
+                    use_rag=True,
+                    top_k=3,
+                    max_tokens=256,
+                    temperature=0.2,
+                    judge_enabled=False,
+                    judge_model="gpt-4o-mini",
+                    limit=10,
+                ),
+                ensure_ascii=False,
+                indent=2,
+            ),
+            language="json",
+        )
+
+
+if __name__ == "__main__":
+    main()
