@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import traceback
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -81,7 +83,8 @@ def generate(req: GenerateRequest):
     except FileNotFoundError as exc:
         raise HTTPException(status_code=500, detail=f"Missing file: {exc}") from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Generate failed: {exc}") from exc
+        detail = f"Generate failed: {exc}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=detail) from exc
 
 
 @app.post("/batch-eval", response_model=BatchEvalResponse, tags=["evaluation"])
@@ -103,4 +106,5 @@ def batch_eval(req: BatchEvalRequest):
     except FileNotFoundError as exc:
         raise HTTPException(status_code=500, detail=f"Missing file: {exc}") from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Batch eval failed: {exc}") from exc
+        detail = f"Batch eval failed: {exc}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=detail) from exc

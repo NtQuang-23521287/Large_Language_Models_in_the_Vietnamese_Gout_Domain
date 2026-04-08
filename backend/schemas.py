@@ -19,6 +19,10 @@ class HealthResponse(BaseModel):
 class ModelInfo(BaseModel):
     label: str
     model_name: str
+    status: str = "experimental"
+    recommended: bool = False
+    size_class: str = "unknown"
+    notes: str = ""
 
 
 class ModelsResponse(BaseModel):
