@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  phogpt-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.phogpt
+    container_name: phogpt-service
+    ports:
+      - "8001:8001"
+    environment:
+      PHOGPT_MODEL_NAME: "vinai/PhoGPT-4B-Chat"
+      PHOGPT_SERVICE_HOST: "0.0.0.0"
+      PHOGPT_SERVICE_PORT: "8001"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  huggingface_cache:
