@@ -65,6 +65,52 @@ def extract_model_labels(models: List[Dict[str, str]]) -> List[str]:
     return labels
 
 
+def get_model_info(models: List[Dict[str, Any]], label: str) -> Dict[str, Any]:
+    for item in models:
+        if item.get("label") == label:
+            return item
+    return {}
+
+
+def extract_http_error(exc: requests.HTTPError) -> str:
+    response = exc.response
+    if response is None:
+        return str(exc)
+
+    try:
+        data = response.json()
+        detail = data.get("detail")
+        if detail:
+            return f"HTTP {response.status_code}: {detail}"
+    except Exception:
+        pass
+
+    text = response.text.strip()
+    if text:
+        return f"HTTP {response.status_code}: {text}"
+    return str(exc)
+
+
+def render_model_status(info: Dict[str, Any]) -> None:
+    if not info:
+        return
+
+    status = info.get("status", "unknown")
+    size_class = info.get("size_class", "unknown")
+    recommended = info.get("recommended", False)
+    notes = info.get("notes", "")
+
+    if recommended:
+        st.success(f"Khuyen nghi: {status} | {size_class}")
+    elif status == "blocked":
+        st.error(f"Khong khuyen nghi: {status} | {size_class}")
+    else:
+        st.warning(f"Trang thai: {status} | {size_class}")
+
+    if notes:
+        st.caption(notes)
+
+
 def build_generate_payload(
     *,
     model_name: str,
@@ -210,6 +256,7 @@ with tab1:
             model_labels,
             index=0,
         )
+        render_model_status(get_model_info(available_models, selected_model))
         use_rag_chat = st.checkbox("Bật RAG", value=True)
         top_k_chat = st.slider("Top-k", min_value=1, max_value=5, value=2)
         max_tokens_chat = st.slider("Max tokens", min_value=32, max_value=512, value=128, step=32)
@@ -260,7 +307,7 @@ with tab1:
                         add_assistant_answer(answer, contexts, meta)
 
                     except requests.HTTPError as exc:
-                        error_text = f"HTTP error: {exc}"
+                        error_text = extract_http_error(exc)
                         st.error(error_text)
                         add_assistant_error(error_text)
                     except Exception as exc:
@@ -277,6 +324,7 @@ with tab2:
         index=0,
         key="batch_model",
     )
+    render_model_status(get_model_info(available_models, selected_batch_model))
     use_rag_batch = st.checkbox("Bật RAG cho batch", value=True, key="batch_rag")
     top_k_batch = st.slider("Top-k batch", min_value=1, max_value=5, value=2, key="batch_top_k")
     max_tokens_batch = st.slider(
@@ -351,7 +399,7 @@ with tab2:
                             st.bar_chart(chart_df)
 
             except requests.HTTPError as exc:
-                st.error(f"HTTP error khi gọi batch-eval: {exc}")
+                st.error(extract_http_error(exc))
             except Exception as exc:
                 st.error(f"Lỗi gọi backend batch-eval: {exc}")
 

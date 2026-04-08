@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import gc
+import logging
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -20,17 +22,43 @@ from gout_eval.generation.retriever import FaissRetriever
 from gout_eval.pipeline.stage_generate import load_testset
 from gout_eval.storage.artifacts import append_jsonl
 
+logger = logging.getLogger(__name__)
+
 try:
     import torch
 except Exception:
     torch = None
 
 
-MODEL_OPTIONS: Dict[str, str] = {
-    "Qwen 2.5 0.5B": "Qwen/Qwen2.5-0.5B-Instruct",
-    "PhoGPT 4B Chat": "vinai/PhoGPT-4B-Chat",
-    "Vistral 7B Chat": "Viet-Mistral/Vistral-7B-Chat",
-    "VinaLLaMA 7B": "vilm/vinallama-7b-chat",
+MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
+    "Qwen 2.5 0.5B": {
+        "model_name": "Qwen/Qwen2.5-0.5B-Instruct",
+        "status": "stable",
+        "recommended": True,
+        "size_class": "0.5B",
+        "notes": "Model nhe, dang chay on dinh tren he thong hien tai.",
+    },
+    "PhoGPT 4B Chat": {
+        "model_name": "vinai/PhoGPT-4B-Chat",
+        "status": "blocked",
+        "recommended": False,
+        "size_class": "4B",
+        "notes": "Can custom dependency khong san co tren Windows/Transformers env hien tai.",
+    },
+    "Vistral 7B Chat": {
+        "model_name": "Viet-Mistral/Vistral-7B-Chat",
+        "status": "experimental",
+        "recommended": False,
+        "size_class": "7B",
+        "notes": "Model lon, can VRAM cao va co the can chat template/model-specific handling.",
+    },
+    "VinaLLaMA 7B": {
+        "model_name": "vilm/vinallama-7b-chat",
+        "status": "experimental",
+        "recommended": False,
+        "size_class": "7B",
+        "notes": "Model lon, tai nhieu shard va co dau hieu can custom generation code.",
+    },
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
@@ -64,15 +92,27 @@ def get_testset_path() -> Path:
 
 
 def list_models() -> List[Dict[str, str]]:
-    return [{"label": label, "model_name": model_name} for label, model_name in MODEL_OPTIONS.items()]
+    models: List[Dict[str, Any]] = []
+    for label, info in MODEL_CATALOG.items():
+        models.append(
+            {
+                "label": label,
+                "model_name": info["model_name"],
+                "status": info["status"],
+                "recommended": info["recommended"],
+                "size_class": info["size_class"],
+                "notes": info["notes"],
+            }
+        )
+    return models
 
 
 def resolve_model_name(model_name: str) -> str:
     """
     Accept either a friendly label or a raw HF/local model path.
     """
-    if model_name in MODEL_OPTIONS:
-        return MODEL_OPTIONS[model_name]
+    if model_name in MODEL_CATALOG:
+        return str(MODEL_CATALOG[model_name]["model_name"])
     return model_name
 
 
@@ -113,7 +153,12 @@ def get_adapter(model_name: str) -> HFAdapter:
 
     cleanup_model_cache(keep_key=None)
 
-    adapter = HFAdapter(model_name=resolved_name)
+    try:
+        adapter = HFAdapter(model_name=resolved_name)
+    except Exception as exc:
+        logger.exception("Model load failed for %s", resolved_name)
+        raise ServiceError(f"Model load failed for '{resolved_name}': {exc}") from exc
+
     _MODEL_CACHE[resolved_name] = adapter
     _CURRENT_MODEL_KEY = resolved_name
     return adapter
@@ -177,11 +222,15 @@ def generate_answer(
     prompt = build_prompt(question=question, contexts=contexts)
 
     adapter = get_adapter(model_name)
-    result = adapter.generate(
-        prompt,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
+    try:
+        result = adapter.generate(
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    except Exception as exc:
+        logger.exception("Generate failed for %s", model_name)
+        raise ServiceError(f"Generation failed for '{model_name}': {exc}") from exc
 
     return {
         "prompt": prompt,
@@ -284,14 +333,20 @@ def run_batch_eval(
         ground_truth = sample["ground_truth"]
         risk_level = sample["risk_level"]
 
-        output = generate_answer(
-            model_name=model_name,
-            question=question,
-            use_rag=use_rag,
-            top_k=top_k,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
+        try:
+            output = generate_answer(
+                model_name=model_name,
+                question=question,
+                use_rag=use_rag,
+                top_k=top_k,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception as exc:
+            trace = traceback.format_exc()
+            raise ServiceError(
+                f"Batch failed at question '{question_id}' with model '{model_name}': {exc}\n{trace}"
+            ) from exc
 
         artifact = build_artifact_record(
             run_id=run_id,
