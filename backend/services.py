@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import os
 import sys
 import traceback
 from datetime import datetime
@@ -14,6 +15,8 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from gout_eval.adapters.api_adapter import APIAdapter
+from gout_eval.adapters.base import BaseAdapter
 from gout_eval.adapters.hf_adapter import HFAdapter
 from gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
 from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
@@ -23,6 +26,10 @@ from gout_eval.pipeline.stage_generate import load_testset
 from gout_eval.storage.artifacts import append_jsonl
 
 logger = logging.getLogger(__name__)
+
+PHOGPT_MODEL_NAME = "vinai/PhoGPT-4B-Chat"
+PHOGPT_BASE_URL = os.getenv("PHOGPT_BASE_URL", "").strip()
+PHOGPT_AUTH_HEADER = os.getenv("PHOGPT_AUTH_HEADER", "").strip() or None
 
 try:
     import torch
@@ -39,11 +46,15 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "notes": "Model nhe, dang chay on dinh tren he thong hien tai.",
     },
     "PhoGPT 4B Chat": {
-        "model_name": "vinai/PhoGPT-4B-Chat",
-        "status": "blocked",
-        "recommended": False,
+        "model_name": PHOGPT_MODEL_NAME,
+        "status": "service" if PHOGPT_BASE_URL else "blocked",
+        "recommended": bool(PHOGPT_BASE_URL),
         "size_class": "4B",
-        "notes": "Can custom dependency khong san co tren Windows/Transformers env hien tai.",
+        "notes": (
+            f"PhoGPT duoc route qua service rieng: {PHOGPT_BASE_URL}"
+            if PHOGPT_BASE_URL
+            else "Can service rieng va env rieng. Dat PHOGPT_BASE_URL de bat model nay."
+        ),
     },
     "Vistral 7B Chat": {
         "model_name": "Viet-Mistral/Vistral-7B-Chat",
@@ -65,7 +76,7 @@ INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
 TESTSET_PATH = PROJECT_ROOT / "data" / "testset" / "gout_test_cases.jsonl"
 RUNS_DIR = PROJECT_ROOT / "runs"
 
-_MODEL_CACHE: Dict[str, HFAdapter] = {}
+_MODEL_CACHE: Dict[str, BaseAdapter] = {}
 _CURRENT_MODEL_KEY: Optional[str] = None
 _RETRIEVER: Optional[FaissRetriever] = None
 _JUDGE_CACHE: Dict[str, GPTJudge] = {}
@@ -139,7 +150,22 @@ def cleanup_model_cache(keep_key: Optional[str] = None) -> None:
     _CURRENT_MODEL_KEY = keep_key
 
 
-def get_adapter(model_name: str) -> HFAdapter:
+def _build_adapter(resolved_name: str) -> BaseAdapter:
+    if resolved_name == PHOGPT_MODEL_NAME:
+        if not PHOGPT_BASE_URL:
+            raise ServiceError(
+                "PhoGPT requires a separate service. Set PHOGPT_BASE_URL for the backend."
+            )
+        return APIAdapter(
+            base_url=PHOGPT_BASE_URL,
+            model_name=resolved_name,
+            auth_header=PHOGPT_AUTH_HEADER,
+        )
+
+    return HFAdapter(model_name=resolved_name)
+
+
+def get_adapter(model_name: str) -> BaseAdapter:
     """
     Load one model at a time.
     """
@@ -154,7 +180,7 @@ def get_adapter(model_name: str) -> HFAdapter:
     cleanup_model_cache(keep_key=None)
 
     try:
-        adapter = HFAdapter(model_name=resolved_name)
+        adapter = _build_adapter(resolved_name)
     except Exception as exc:
         logger.exception("Model load failed for %s", resolved_name)
         raise ServiceError(f"Model load failed for '{resolved_name}': {exc}") from exc
