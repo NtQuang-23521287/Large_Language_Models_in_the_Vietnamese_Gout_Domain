@@ -13,6 +13,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 MODEL_NAME = os.getenv("PHOGPT_MODEL_NAME", "vinai/PhoGPT-4B-Chat")
 HOST = os.getenv("PHOGPT_SERVICE_HOST", "0.0.0.0")
 PORT = int(os.getenv("PHOGPT_SERVICE_PORT", "8001"))
+REVISION = os.getenv("PHOGPT_REVISION", "").strip() or None
+FORCE_DOWNLOAD = os.getenv("PHOGPT_FORCE_DOWNLOAD", "false").strip().lower() in {"1", "true", "yes"}
 
 
 class GenerateRequest(BaseModel):
@@ -29,9 +31,11 @@ class GenerateResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     model_name: str
+    revision: Optional[str] = None
     loaded: bool
     device: str
     dtype: str
+    force_download: bool
     error: Optional[str] = None
 
 
@@ -59,6 +63,8 @@ def load_model() -> None:
         tokenizer = AutoTokenizer.from_pretrained(
             MODEL_NAME,
             trust_remote_code=True,
+            revision=REVISION,
+            force_download=FORCE_DOWNLOAD,
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
@@ -66,8 +72,10 @@ def load_model() -> None:
         model = AutoModelForCausalLM.from_pretrained(
             MODEL_NAME,
             trust_remote_code=True,
+            revision=REVISION,
             dtype=dtype,
             low_cpu_mem_usage=True,
+            force_download=FORCE_DOWNLOAD,
         )
         model.to(device)
         model.eval()
@@ -96,9 +104,11 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok" if model is not None else "degraded",
         model_name=MODEL_NAME,
+        revision=REVISION,
         loaded=model is not None,
         device=device,
         dtype=str(dtype),
+        force_download=FORCE_DOWNLOAD,
         error=load_error,
     )
 
@@ -151,6 +161,7 @@ def generate(req: GenerateRequest) -> GenerateResponse:
             meta={
                 "backend": "phogpt-service",
                 "model_name": MODEL_NAME,
+                "revision": REVISION,
                 "device": device,
                 "dtype": str(dtype),
                 "input_tokens": int(input_len),

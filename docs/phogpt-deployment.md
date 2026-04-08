@@ -20,6 +20,15 @@ Service se mo o:
 http://127.0.0.1:8001
 ```
 
+Neu can thu mot snapshot khac cua PhoGPT:
+
+```bash
+export PHOGPT_REVISION="<commit-or-tag>"
+export PHOGPT_FORCE_DOWNLOAD="true"
+```
+
+Hoac set truc tiep trong `docker-compose.phogpt.yml`.
+
 ## 3. Kiem tra health
 
 ```bash
