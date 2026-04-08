@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
+MODEL_DIR = PROJECT_ROOT / "config" / "model"
 
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
@@ -41,10 +42,9 @@ GGUF_N_CTX = int(os.getenv("GGUF_N_CTX", "4096"))
 GGUF_N_GPU_LAYERS = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
 GGUF_N_THREADS = int(os.getenv("GGUF_N_THREADS", "4"))
 
-MODEL_OPTIONS = {
+BASE_MODEL_OPTIONS = {
     "Qwen 2.5 0.5B": "Qwen/Qwen2.5-0.5B-Instruct",
     "PhoGPT 4B Chat": "vinai/PhoGPT-4B-Chat",
-    "GGUF Local": "gguf",
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
@@ -57,7 +57,8 @@ def make_run_id() -> str:
 
 
 def is_gguf_model_name(model_name: str) -> bool:
-    return model_name.lower().endswith(".gguf") or model_name.lower().startswith("gguf:")
+    normalized = model_name.lower().strip()
+    return normalized.endswith(".gguf") or normalized.startswith("gguf:")
 
 
 def normalize_gguf_path(model_name: str) -> str:
@@ -65,6 +66,32 @@ def normalize_gguf_path(model_name: str) -> str:
     if normalized.lower().startswith("gguf:"):
         normalized = normalized.split(":", 1)[1].strip()
     return str(Path(normalized).expanduser())
+
+
+def scan_gguf_models(model_dir: Path) -> Dict[str, str]:
+    """
+    Quet toan bo thu muc config/model de tim file .gguf.
+    Key = label hien tren UI
+    Value = duong dan file thuc te
+    """
+    gguf_models: Dict[str, str] = {}
+
+    if not model_dir.exists():
+        return gguf_models
+
+    for path in sorted(model_dir.rglob("*.gguf")):
+        if path.is_file():
+            rel_path = path.relative_to(model_dir)
+            label = f"GGUF | {rel_path.as_posix()}"
+            gguf_models[label] = str(path.resolve())
+
+    return gguf_models
+
+
+def get_model_options() -> Dict[str, str]:
+    options = dict(BASE_MODEL_OPTIONS)
+    options.update(scan_gguf_models(MODEL_DIR))
+    return options
 
 
 @st.cache_resource(show_spinner=False)
@@ -211,23 +238,22 @@ def summary_to_dataframe(summary: Dict[str, Any]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def resolve_selected_models(selected_labels: List[str], gguf_path: str) -> tuple[List[str], List[str]]:
+def resolve_selected_models(selected_labels: List[str], model_options: Dict[str, str]) -> tuple[List[str], List[str]]:
     resolved_labels: List[str] = []
     resolved_models: List[str] = []
 
     for label in selected_labels:
-        if label == "GGUF Local":
-            if gguf_path:
-                resolved_labels.append(label)
-                resolved_models.append(gguf_path)
-        else:
+        if label in model_options:
             resolved_labels.append(label)
-            resolved_models.append(MODEL_OPTIONS[label])
+            resolved_models.append(model_options[label])
 
     return resolved_labels, resolved_models
 
 
 st.set_page_config(page_title="Gout-LLM Chat & Eval", page_icon="🩺", layout="wide")
+
+MODEL_OPTIONS = get_model_options()
+GGUF_DISCOVERED = [label for label in MODEL_OPTIONS if label.startswith("GGUF | ")]
 
 st.title("Gout-LLM: UI noi backend that")
 st.markdown("So sanh da mo hinh, luu run va ve bieu do metric ngay tren giao dien.")
@@ -250,26 +276,18 @@ with tab1:
             default=["Qwen 2.5 0.5B"],
         )
 
-        gguf_path_chat = st.text_input(
-            "GGUF path (neu dung)",
-            value="",
-            placeholder="/models/model.gguf",
-            help="Nhap duong dan file .gguf neu chon GGUF Local.",
-        ).strip()
-
         selected_chat_labels_effective, selected_chat_models = resolve_selected_models(
             selected_chat_labels,
-            gguf_path_chat,
+            MODEL_OPTIONS,
         )
-
-        if "GGUF Local" in selected_chat_labels and not gguf_path_chat:
-            st.warning("Ban da chon GGUF Local nhung chua nhap duong dan file .gguf.")
 
         use_rag_chat = st.checkbox("Bat RAG", value=True)
         top_k_chat = st.slider("Top-k", min_value=1, max_value=5, value=2)
         max_tokens_chat = st.slider("Max tokens", min_value=32, max_value=256, value=128, step=32)
         temperature_chat = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
         st.caption(f"Index: `{INDEX_DIR}`")
+        st.caption(f"Model dir: `{MODEL_DIR}`")
+        st.caption(f"GGUF tim thay: {len(GGUF_DISCOVERED)}")
 
     with col_chat:
         if "messages" not in st.session_state:
@@ -305,7 +323,7 @@ with tab1:
 
             if not selected_chat_models:
                 with st.chat_message("assistant"):
-                    st.error("Khong co model hop le de chay. Neu dung GGUF Local, hay nhap duong dan file .gguf.")
+                    st.error("Khong co model hop le de chay. Hay them model vao `config/model` hoac chon model khac.")
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
@@ -313,7 +331,7 @@ with tab1:
                         "outputs": [
                             {
                                 "label": "System",
-                                "error": "Khong co model hop le de chay. Neu dung GGUF Local, hay nhap duong dan file .gguf.",
+                                "error": "Khong co model hop le de chay. Hay them model vao `config/model` hoac chon model khac.",
                             }
                         ],
                         "contexts": [],
@@ -379,21 +397,10 @@ with tab2:
         key="batch_models",
     )
 
-    gguf_path_batch = st.text_input(
-        "GGUF path cho batch (neu dung)",
-        value="",
-        placeholder="/models/model.gguf",
-        help="Nhap duong dan file .gguf neu chon GGUF Local.",
-        key="batch_gguf_path",
-    ).strip()
-
     selected_batch_labels_effective, selected_batch_models = resolve_selected_models(
         selected_batch_labels,
-        gguf_path_batch,
+        MODEL_OPTIONS,
     )
-
-    if "GGUF Local" in selected_batch_labels and not gguf_path_batch:
-        st.warning("Ban da chon GGUF Local cho batch nhung chua nhap duong dan file .gguf.")
 
     use_rag_batch = st.checkbox("Bat RAG cho batch", value=True, key="batch_rag")
     top_k_batch = st.slider("Top-k batch", min_value=1, max_value=5, value=2, key="batch_top_k")
@@ -418,7 +425,7 @@ with tab2:
 
     if st.button("Bat dau chay batch", type="primary"):
         if not selected_batch_models:
-            st.error("Khong co model hop le de chay batch. Neu dung GGUF Local, hay nhap duong dan file .gguf.")
+            st.error("Khong co model hop le de chay batch. Hay them model vao `config/model` hoac chon model khac.")
         else:
             run_id = make_run_id()
             run_dir = RUNS_DIR / run_id
