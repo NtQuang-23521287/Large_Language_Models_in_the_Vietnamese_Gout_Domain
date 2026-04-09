@@ -117,7 +117,7 @@ def get_adapter(model_name: str):
         # Nếu UI và Docker chạy cùng trên 1 máy GCP, dùng localhost
         # Nếu UI chạy máy nhà, Docker chạy GCP, thay localhost bằng IP của GCP
         return APIAdapter(
-            base_url="http://localhost:8001", 
+            base_url="http://35.185.133.4:8001", 
             model_name=model_name,
             timeout=300
         )
