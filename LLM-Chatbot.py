@@ -417,7 +417,7 @@ with tab2:
     st.success(f" Đã nạp thành công {len(testset_data)} câu hỏi từ `{active_testset_path}`")
 
     with st.expander("Xem trước nội dung tập dữ liệu"):
-        st.dataframe(pd DataFrame(testset_data), width="stretch")
+        st.dataframe(pd.DataFrame(testset_data), width="stretch")
 
     num_run = st.slider(
         "Chọn số lượng câu hỏi muốn tiến hành đánh giá",
