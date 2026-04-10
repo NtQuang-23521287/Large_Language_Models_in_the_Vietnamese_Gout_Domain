@@ -7,7 +7,7 @@ from typing import Any
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from gout_eval.adapters.base import BaseAdapter, GenerationResult
+from src.gout_eval.adapters.base import BaseAdapter, GenerationResult
 
 
 class HFAdapter(BaseAdapter):

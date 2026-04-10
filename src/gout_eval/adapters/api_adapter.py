@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import requests
 
-from gout_eval.adapters.base import BaseAdapter, GenerationResult
+from src.gout_eval.adapters.base import BaseAdapter, GenerationResult
 
 
 class APIAdapter(BaseAdapter):
