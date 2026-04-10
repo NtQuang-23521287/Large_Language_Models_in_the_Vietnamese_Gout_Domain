@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
+# SỬA ĐƯỜNG DẪN Ở ĐÂY: Thêm chữ 's' vào configs và models
 MODEL_DIR = PROJECT_ROOT / "configs" / "models"
 
 import pandas as pd
@@ -40,6 +41,7 @@ GGUF_N_CTX = int(os.getenv("GGUF_N_CTX", "4096"))
 GGUF_N_GPU_LAYERS = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
 GGUF_N_THREADS = int(os.getenv("GGUF_N_THREADS", "4"))
 
+# THÊM CÁC MODEL GGUF VỚI TÊN ĐẸP VÀO ĐÂY
 BASE_MODEL_OPTIONS = {
     # Nhóm API (Chạy bằng Docker/GPU)
     "Qwen 2.5 0.5B (API)": "Qwen/Qwen2.5-0.5B-Instruct",
@@ -52,7 +54,7 @@ BASE_MODEL_OPTIONS = {
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
-TESTSET_DIR = PROJECT_ROOT / "data" / "testset"
+TESTSET_PATH = PROJECT_ROOT / "data" / "testset" / "gout_test_cases.jsonl"
 RUNS_DIR = PROJECT_ROOT / "runs"
 
 
@@ -73,15 +75,22 @@ def normalize_gguf_path(model_name: str) -> str:
 
 
 def scan_gguf_models(model_dir: Path) -> Dict[str, str]:
+    """
+    Quet toan bo thu muc configs/models de tim file .gguf.
+    """
     gguf_models: Dict[str, str] = {}
+
     if not model_dir.exists():
         return gguf_models
+
     for path in sorted(model_dir.rglob("*.gguf")):
         if path.is_file():
+            # Tránh thêm trùng lặp nếu đã khai báo cứng ở trên
             if str(path.resolve()) not in BASE_MODEL_OPTIONS.values():
                 rel_path = path.relative_to(model_dir)
                 label = f"GGUF | {rel_path.as_posix()}"
                 gguf_models[label] = str(path.resolve())
+
     return gguf_models
 
 
@@ -97,9 +106,9 @@ def get_adapter(model_name: str):
         model_path = normalize_gguf_path(model_name)
         path_obj = Path(model_path)
         if not path_obj.exists():
-            raise FileNotFoundError(f"Lỗi: Không tìm thấy file GGUF tại {path_obj}")
+            raise FileNotFoundError(f"GGUF file not found: {path_obj}")
         if not path_obj.is_file():
-            raise FileNotFoundError(f"Lỗi: Đường dẫn không phải là file: {path_obj}")
+            raise FileNotFoundError(f"GGUF path is not a file: {path_obj}")
 
         return GGUFAdapter(
             model_path=str(path_obj.resolve()),
@@ -108,6 +117,7 @@ def get_adapter(model_name: str):
             n_threads=GGUF_N_THREADS,
         )
 
+    # ĐÂY LÀ ĐIỂM QUAN TRỌNG: Nối UI với Docker Backend
     if "PhoGPT" in model_name:
         return APIAdapter(
             base_url="http://35.185.133.4:8001", 
@@ -115,6 +125,7 @@ def get_adapter(model_name: str):
             timeout=300
         )
 
+    # Với các model còn lại (như Qwen), cứ dùng HFAdapter chạy trực tiếp
     return HFAdapter(model_name=model_name)
 
 
@@ -245,23 +256,26 @@ def summary_to_dataframe(summary: Dict[str, Any]) -> pd.DataFrame:
 def resolve_selected_models(selected_labels: List[str], model_options: Dict[str, str]) -> tuple[List[str], List[str]]:
     resolved_labels: List[str] = []
     resolved_models: List[str] = []
+
     for label in selected_labels:
         if label in model_options:
             resolved_labels.append(label)
             resolved_models.append(model_options[label])
+
     return resolved_labels, resolved_models
 
 
-st.set_page_config(page_title="Gout-LLM: Đánh giá Đa mô hình", page_icon="🩺", layout="wide")
+st.set_page_config(page_title="Gout-LLM Chat & Eval", page_icon="🩺", layout="wide")
 
 MODEL_OPTIONS = get_model_options()
 GGUF_DISCOVERED = [label for label in MODEL_OPTIONS if "(GGUF)" in label or label.startswith("GGUF | ")]
 
-st.title("🩺 Gout-LLM: Nền tảng Đánh giá Đa mô hình")
-st.markdown("Hệ thống thử nghiệm RAG, so sánh chất lượng các LLM (PhoGPT, VinaLLaMA, Vistral) và trực quan hóa kết quả tự động.")
+st.title("Gout-LLM: UI noi backend that")
+st.markdown("So sanh da mo hinh, luu run va ve bieu do metric ngay tren giao dien.")
 st.divider()
 
-tab1, tab2 = st.tabs(["Chat với model", "So sánh và đánh giá các model"])
+# TẠO 2 TAB GIAO DIỆN
+tab1, tab2 = st.tabs(["Chat trực tiếp", "Đánh giá Hàng loạt (Batch Eval)"])
 
 # ==========================================
 # TAB 1: CHAT TRỰC TIẾP
@@ -270,9 +284,9 @@ with tab1:
     col_settings, col_chat = st.columns([1, 3], gap="large")
 
     with col_settings:
-        st.subheader("Cấu hình")
+        st.subheader("Cau hinh")
         selected_chat_labels = st.multiselect(
-            "Chọn model",
+            "Models",
             list(MODEL_OPTIONS.keys()),
             default=["PhoGPT 4B (GGUF)"],
         )
@@ -282,15 +296,13 @@ with tab1:
             MODEL_OPTIONS,
         )
 
-        use_rag_chat = st.checkbox("Bật RAG (Trích xuất tài liệu)", value=True)
-        top_k_chat = st.slider("Số tài liệu trích xuất (Top-K)", min_value=1, max_value=5, value=2)
-        max_tokens_chat = st.slider("Giới hạn độ dài (Max tokens)", min_value=32, max_value=256, value=128, step=32)
-        temperature_chat = st.slider("Độ sáng tạo (Temperature)", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
-        
-        st.divider()
-        st.caption(f" Thư mục Index RAG: `{INDEX_DIR}`")
-        st.caption(f" Thư mục Model: `{MODEL_DIR}`")
-        st.caption(f" GGUF Model tìm thấy: {len(GGUF_DISCOVERED)}")
+        use_rag_chat = st.checkbox("Bat RAG", value=True)
+        top_k_chat = st.slider("Top-k", min_value=1, max_value=5, value=2)
+        max_tokens_chat = st.slider("Max tokens", min_value=32, max_value=256, value=128, step=32)
+        temperature_chat = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
+        st.caption(f"Index: `{INDEX_DIR}`")
+        st.caption(f"Model dir: `{MODEL_DIR}`")
+        st.caption(f"GGUF tim thay: {len(GGUF_DISCOVERED)}")
 
     with col_chat:
         if "messages" not in st.session_state:
@@ -308,25 +320,38 @@ with tab1:
                         cols = st.columns(max(1, len(outputs)))
                         for col, output in zip(cols, outputs):
                             with col:
-                                st.caption(f" **{output['label']}**")
+                                st.caption(f"**{output['label']}**")
                                 if output.get("error"):
                                     st.error(output["error"])
                                 else:
                                     st.write(output.get("answer", ""))
                         if msg.get("contexts"):
-                            with st.expander(" Xem tài liệu tham khảo (Contexts)"):
+                            with st.expander("Retrieved contexts"):
                                 for idx, ctx in enumerate(msg["contexts"], start=1):
-                                    st.markdown(f"**Tài liệu {idx}:**")
-                                    st.info(ctx)
+                                    st.markdown(f"**Context {idx}**")
+                                    st.write(ctx)
 
-        if prompt := st.chat_input("Nhập câu hỏi..."):
+        if prompt := st.chat_input("Nhap cau hoi ve benh Gut..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
 
             if not selected_chat_models:
                 with st.chat_message("assistant"):
-                    st.error("Chưa chọn mô hình hợp lệ. Vui lòng chọn ít nhất một mô hình ở cột cấu hình bên trái.")
+                    st.error("Khong co model hop le de chay. Hay them model vao `configs/models` hoac chon model khac.")
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": "Khong co model hop le de chay.",
+                        "outputs": [
+                            {
+                                "label": "System",
+                                "error": "Khong co model hop le de chay. Hay them model vao `configs/models` hoac chon model khac.",
+                            }
+                        ],
+                        "contexts": [],
+                    }
+                )
             else:
                 contexts = build_contexts(prompt, use_rag_chat, top_k_chat)
                 outputs: List[Dict[str, Any]] = []
@@ -335,8 +360,8 @@ with tab1:
                     cols = st.columns(max(1, len(selected_chat_models)))
                     for col, label, model_name in zip(cols, selected_chat_labels_effective, selected_chat_models):
                         with col:
-                            st.caption(f" **{label}**")
-                            with st.spinner("Đang suy nghĩ..."):
+                            st.caption(f"**{label}**")
+                            with st.spinner("Dang sinh cau tra loi..."):
                                 try:
                                     output = generate_answer(
                                         model_name=model_name,
@@ -346,39 +371,42 @@ with tab1:
                                         temperature=temperature_chat,
                                     )
                                     st.write(output["answer"])
-                                    outputs.append({
-                                        "label": label,
-                                        "model_name": model_name,
-                                        "answer": output["answer"],
-                                    })
+                                    outputs.append(
+                                        {
+                                            "label": label,
+                                            "model_name": model_name,
+                                            "answer": output["answer"],
+                                        }
+                                    )
                                 except Exception as exc:
-                                    st.error(f"Lỗi hệ thống: {str(exc)}")
-                                    outputs.append({
-                                        "label": label,
-                                        "model_name": model_name,
-                                        "error": f"Lỗi hệ thống: {str(exc)}",
-                                    })
+                                    st.error(str(exc))
+                                    outputs.append(
+                                        {
+                                            "label": label,
+                                            "model_name": model_name,
+                                            "error": str(exc),
+                                        }
+                                    )
                     if contexts:
-                        with st.expander(" Xem tài liệu tham khảo (Contexts)"):
+                        with st.expander("Retrieved contexts"):
                             for idx, ctx in enumerate(contexts, start=1):
-                                st.markdown(f"**Tài liệu {idx}:**")
-                                st.info(ctx)
+                                st.markdown(f"**Context {idx}**")
+                                st.write(ctx)
 
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "",
-                    "outputs": outputs,
-                    "contexts": contexts,
-                })
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": "",
+                        "outputs": outputs,
+                        "contexts": contexts,
+                    }
+                )
 
-# ==========================================
-# TAB 2: ĐÁNH GIÁ HÀNG LOẠT
-# ==========================================
 with tab2:
-    st.subheader(" Cấu hìn")
+    st.subheader("Danh gia hang loat")
 
     selected_batch_labels = st.multiselect(
-        "Chọn các Mô hình để đưa vào đường đua",
+        "Models de danh gia",
         list(MODEL_OPTIONS.keys()),
         default=[l for l in MODEL_OPTIONS.keys() if "(GGUF)" in l],
         key="batch_models",
@@ -389,46 +417,30 @@ with tab2:
         MODEL_OPTIONS,
     )
 
-    col_b1, col_b2, col_b3 = st.columns(3)
-    with col_b1:
-        use_rag_batch = st.checkbox("Bật RAG", value=True, key="batch_rag")
-        judge_enabled = st.checkbox("Bật AI Giám khảo (LLM-as-a-Judge)", value=False)
-    with col_b2:
-        top_k_batch = st.slider("Số tài liệu trích xuất (Top-K)", min_value=1, max_value=5, value=2, key="batch_top_k")
-        judge_model = st.text_input("Mô hình Giám khảo (API)", value="gpt-4o-mini")
-    with col_b3:
-        max_tokens_batch = st.slider("Giới hạn độ dài", min_value=32, max_value=256, value=128, step=32, key="batch_max_tokens")
-        temperature_batch = st.slider("Độ sáng tạo", min_value=0.0, max_value=1.0, value=0.2, step=0.1, key="batch_temperature")
-        
-    st.divider()
-    st.subheader("(Testse)")
-    
-    # TINH NANG MOI: Chon file JSONL dong
-    available_testsets = [f.name for f in TESTSET_DIR.glob("*.jsonl")]
-    if not available_testsets:
-        st.error(f"Không tìm thấy file .jsonl nào trong thư mục `{TESTSET_DIR}`. Vui lòng kiểm tra lại!")
-        st.stop()
-        
-    selected_testset_name = st.selectbox("Chọn file tập dữ liệu kiểm thử (.jsonl)", available_testsets)
-    active_testset_path = TESTSET_DIR / selected_testset_name
+    use_rag_batch = st.checkbox("Bat RAG cho batch", value=True, key="batch_rag")
+    top_k_batch = st.slider("Top-k batch", min_value=1, max_value=5, value=2, key="batch_top_k")
+    max_tokens_batch = st.slider("Max tokens batch", min_value=32, max_value=256, value=128, step=32, key="batch_max_tokens")
+    temperature_batch = st.slider("Temperature batch", min_value=0.0, max_value=1.0, value=0.2, step=0.1, key="batch_temperature")
+    judge_enabled = st.checkbox("Bat LLM-as-a-Judge", value=False)
+    judge_model = st.text_input("Judge model", value="gpt-4o-mini")
 
-    raw_testset = load_testset(active_testset_path)
+    raw_testset = load_testset(TESTSET_PATH)
     testset_data = [normalize_test_row(sample, idx) for idx, sample in enumerate(raw_testset)]
-    st.success(f" Đã nạp thành công {len(testset_data)} câu hỏi từ `{active_testset_path}`")
+    st.success(f"Da nap {len(testset_data)} cau hoi tu `{TESTSET_PATH}`")
 
-    with st.expander("Xem trước nội dung tập dữ liệu"):
-        st.dataframe(pd DataFrame(testset_data), width="stretch")
+    with st.expander("Preview testset"):
+        st.dataframe(pd.DataFrame(testset_data), use_container_width=True)
 
     num_run = st.slider(
-        "Chọn số lượng câu hỏi muốn tiến hành đánh giá",
+        "So cau hoi muon chay",
         min_value=1,
         max_value=len(testset_data),
         value=min(5, len(testset_data)),
     )
 
-    if st.button(" BẮT ĐẦU ĐÁNH GIÁ HÀNG LOẠT", type="primary"):
+    if st.button("Bat dau chay batch", type="primary"):
         if not selected_batch_models:
-            st.error("Vui lòng chọn ít nhất một mô hình để chạy đánh giá!")
+            st.error("Khong co model hop le de chay batch. Hay them model vao `configs/models` hoac chon model khac.")
         else:
             run_id = make_run_id()
             run_dir = RUNS_DIR / run_id
@@ -453,7 +465,7 @@ with tab2:
 
                 for label, model_name in zip(selected_batch_labels_effective, selected_batch_models):
                     current_step += 1
-                    status_text.text(f"Đang sinh câu trả lời: {label} - {question_id} ({current_step}/{total_steps})...")
+                    status_text.text(f"Dang generate {label} - {question_id} ({current_step}/{total_steps})...")
 
                     try:
                         output = generate_answer(
@@ -482,7 +494,7 @@ with tab2:
 
                         judge_output = None
                         if judge_enabled:
-                            status_text.text(f"Giám khảo đang chấm điểm: {label} - {question_id}...")
+                            status_text.text(f"Dang judge {label} - {question_id}...")
                             judge_output = judge_answer(
                                 judge_model=judge_model,
                                 question=question,
@@ -495,51 +507,55 @@ with tab2:
                             judge_records.append(judge_record)
                             append_jsonl(judge_path, judge_record)
 
-                        display_rows.append({
-                            "Mã câu hỏi": question_id,
-                            "Mức độ": risk_level,
-                            "Mô hình": label,
-                            "Câu hỏi": question,
-                            "Câu trả lời": output["answer"],
-                            "Độ trung thực": None if not judge_output else judge_output.get("faithfulness", {}).get("score"),
-                            "Độ bám sát ngữ cảnh": None if not judge_output else judge_output.get("context_recall", {}).get("score"),
-                            "Độ súc tích": None if not judge_output else judge_output.get("completeness", {}).get("score"),
-                            "Mức độ Ảo giác": None if not judge_output else judge_output.get("hallucination_severity", {}).get("level"),
-                            "Nhận xét của Giám khảo": None if not judge_output else judge_output.get("overall_comment"),
-                        })
+                        display_rows.append(
+                            {
+                                "Question ID": question_id,
+                                "Risk level": risk_level,
+                                "Model": label,
+                                "Question": question,
+                                "Answer": output["answer"],
+                                "Faithfulness": None if not judge_output else judge_output.get("faithfulness", {}).get("score"),
+                                "Context Recall": None if not judge_output else judge_output.get("context_recall", {}).get("score"),
+                                "Completeness": None if not judge_output else judge_output.get("completeness", {}).get("score"),
+                                "Hallucination": None if not judge_output else judge_output.get("hallucination_severity", {}).get("level"),
+                                "Judge comment": None if not judge_output else judge_output.get("overall_comment"),
+                            }
+                        )
                     except Exception as exc:
-                        display_rows.append({
-                            "Mã câu hỏi": question_id,
-                            "Mức độ": risk_level,
-                            "Mô hình": label,
-                            "Câu hỏi": question,
-                            "Câu trả lời": f"LỖI: {exc}",
-                            "Độ trung thực": None,
-                            "Độ bám sát ngữ cảnh": None,
-                            "Độ súc tích": None,
-                            "Mức độ Ảo giác": None,
-                            "Nhận xét của Giám khảo": None,
-                        })
+                        display_rows.append(
+                            {
+                                "Question ID": question_id,
+                                "Risk level": risk_level,
+                                "Model": label,
+                                "Question": question,
+                                "Answer": f"ERROR: {exc}",
+                                "Faithfulness": None,
+                                "Context Recall": None,
+                                "Completeness": None,
+                                "Hallucination": None,
+                                "Judge comment": None,
+                            }
+                        )
 
                     progress_bar.progress(current_step / total_steps)
 
-            status_text.success(" HOÀN TẤT ĐÁNH GIÁ HÀNG LOẠT!")
-            st.caption(f" File lưu trữ kết quả (Artifacts): `{artifacts_path}`")
+            status_text.success("Hoan tat batch eval.")
+            st.caption(f"Artifacts: `{artifacts_path}`")
             if judge_enabled:
-                st.caption(f" File lưu trữ điểm số (Judge results): `{judge_path}`")
+                st.caption(f"Judge results: `{judge_path}`")
 
             result_df = pd.DataFrame(display_rows)
-            st.subheader(" Bảng Kết quả Chi tiết")
-            st.dataframe(result_df, width="stretch")
+            st.subheader("Bang ket qua chi tiet")
+            st.dataframe(result_df, use_container_width=True)
 
             if judge_enabled and judge_records:
                 summary = aggregate_results(judge_records)
                 save_summary(summary_path, summary)
-                st.caption(f" File lưu trữ tổng hợp (Summary): `{summary_path}`")
+                st.caption(f"Summary: `{summary_path}`")
 
                 summary_df = summary_to_dataframe(summary)
-                st.subheader(" Tổng hợp Điểm số trung bình theo Mô hình")
-                st.dataframe(summary_df, width="stretch")
+                st.subheader("Tong hop metric theo model")
+                st.dataframe(summary_df, use_container_width=True)
 
                 metric_columns = [
                     "faithfulness_mean",
@@ -553,7 +569,7 @@ with tab2:
 
                 if available_metric_columns:
                     chart_df = summary_df.set_index("model_name")[available_metric_columns]
-                    st.subheader(" Biểu đồ So sánh Chỉ số Đo lường")
+                    st.subheader("Bieu do metric theo model")
                     st.bar_chart(chart_df)
 
                 hallucination_columns = [
@@ -564,5 +580,5 @@ with tab2:
                 available_hall_columns = [col for col in hallucination_columns if col in summary_df.columns]
                 if available_hall_columns:
                     hall_df = summary_df.set_index("model_name")[available_hall_columns]
-                    st.subheader("Biểu đồ Tỷ lệ Ảo giác (Hallucination) theo Mô hình")
+                    st.subheader("Bieu do ty le hallucination theo model")
                     st.bar_chart(hall_df)
