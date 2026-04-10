@@ -73,7 +73,7 @@ def load_model() -> None:
             MODEL_NAME,
             trust_remote_code=True,
             revision=REVISION,
-            dtype=dtype,
+            torch_dtype=dtype,
             low_cpu_mem_usage=True,
             force_download=FORCE_DOWNLOAD,
         )

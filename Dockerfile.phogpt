@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -15,8 +15,19 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY requirements-phogpt.txt /app/requirements-phogpt.txt
-RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install -r /app/requirements-phogpt.txt
+
+# 1. Cài các công cụ hỗ trợ build
+RUN python3 -m pip install --upgrade pip setuptools wheel ninja packaging einops
+
+# 2. BÀN TAY SẮT: Ép buộc cài PyTorch chuẩn CUDA 12.1 (Cấm pip tự nâng cấp lên 13.0)
+RUN python3 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# 3. Cài các thư viện khác (pip sẽ bỏ qua cài torch vì đã thấy có sẵn bản 12.1)
+RUN python3 -m pip install -r /app/requirements-phogpt.txt
+
+# 4. Cài flash-attn (Bây giờ Torch 12.1 và Hệ điều hành 12.1 đã đồng bộ 100%)
+RUN python3 -m pip install flash-attn --no-build-isolation
+RUN python3 -m pip install "transformers==4.42.4"
 
 COPY backend /app/backend
 
