@@ -9,7 +9,8 @@ from typing import Any, Dict, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
-MODEL_DIR = PROJECT_ROOT / "config" / "model"
+# SỬA ĐƯỜNG DẪN Ở ĐÂY: Thêm chữ 's' vào configs và models
+MODEL_DIR = PROJECT_ROOT / "configs" / "models"
 
 import pandas as pd
 import streamlit as st
@@ -40,9 +41,16 @@ GGUF_N_CTX = int(os.getenv("GGUF_N_CTX", "4096"))
 GGUF_N_GPU_LAYERS = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
 GGUF_N_THREADS = int(os.getenv("GGUF_N_THREADS", "4"))
 
+# THÊM CÁC MODEL GGUF VỚI TÊN ĐẸP VÀO ĐÂY
 BASE_MODEL_OPTIONS = {
-    "Qwen 2.5 0.5B": "Qwen/Qwen2.5-0.5B-Instruct",
-    "PhoGPT 4B Chat": "vinai/PhoGPT-4B-Chat",
+    # Nhóm API (Chạy bằng Docker/GPU)
+    "Qwen 2.5 0.5B (API)": "Qwen/Qwen2.5-0.5B-Instruct",
+    "PhoGPT 4B Chat (API)": "vinai/PhoGPT-4B-Chat",
+    
+    # Nhóm GGUF (Chạy bằng CPU)
+    "PhoGPT 4B (GGUF)": str(PROJECT_ROOT / "configs" / "models" / "PhoGPT-4B-Chat-Q4_K_M.gguf"),
+    "VinaLLaMA 7B (GGUF)": str(PROJECT_ROOT / "configs" / "models" / "vinallama-7b-chat.Q4_K_M.gguf"),
+    "Vistral 7B (GGUF)": str(PROJECT_ROOT / "configs" / "models" / "ggml-vistral-7B-chat-q4_0.gguf"),
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
@@ -68,9 +76,7 @@ def normalize_gguf_path(model_name: str) -> str:
 
 def scan_gguf_models(model_dir: Path) -> Dict[str, str]:
     """
-    Quet toan bo thu muc config/model de tim file .gguf.
-    Key = label hien tren UI
-    Value = duong dan file thuc te
+    Quet toan bo thu muc configs/models de tim file .gguf.
     """
     gguf_models: Dict[str, str] = {}
 
@@ -79,9 +85,11 @@ def scan_gguf_models(model_dir: Path) -> Dict[str, str]:
 
     for path in sorted(model_dir.rglob("*.gguf")):
         if path.is_file():
-            rel_path = path.relative_to(model_dir)
-            label = f"GGUF | {rel_path.as_posix()}"
-            gguf_models[label] = str(path.resolve())
+            # Tránh thêm trùng lặp nếu đã khai báo cứng ở trên
+            if str(path.resolve()) not in BASE_MODEL_OPTIONS.values():
+                rel_path = path.relative_to(model_dir)
+                label = f"GGUF | {rel_path.as_posix()}"
+                gguf_models[label] = str(path.resolve())
 
     return gguf_models
 
@@ -111,8 +119,6 @@ def get_adapter(model_name: str):
 
     # ĐÂY LÀ ĐIỂM QUAN TRỌNG: Nối UI với Docker Backend
     if "PhoGPT" in model_name:
-        # Nếu UI và Docker chạy cùng trên 1 máy GCP, dùng localhost
-        # Nếu UI chạy máy nhà, Docker chạy GCP, thay localhost bằng IP của GCP
         return APIAdapter(
             base_url="http://35.185.133.4:8001", 
             model_name=model_name,
@@ -262,7 +268,7 @@ def resolve_selected_models(selected_labels: List[str], model_options: Dict[str,
 st.set_page_config(page_title="Gout-LLM Chat & Eval", page_icon="🩺", layout="wide")
 
 MODEL_OPTIONS = get_model_options()
-GGUF_DISCOVERED = [label for label in MODEL_OPTIONS if label.startswith("GGUF | ")]
+GGUF_DISCOVERED = [label for label in MODEL_OPTIONS if "(GGUF)" in label or label.startswith("GGUF | ")]
 
 st.title("Gout-LLM: UI noi backend that")
 st.markdown("So sanh da mo hinh, luu run va ve bieu do metric ngay tren giao dien.")
@@ -282,7 +288,7 @@ with tab1:
         selected_chat_labels = st.multiselect(
             "Models",
             list(MODEL_OPTIONS.keys()),
-            default=["Qwen 2.5 0.5B"],
+            default=["PhoGPT 4B (GGUF)"],
         )
 
         selected_chat_labels_effective, selected_chat_models = resolve_selected_models(
@@ -332,7 +338,7 @@ with tab1:
 
             if not selected_chat_models:
                 with st.chat_message("assistant"):
-                    st.error("Khong co model hop le de chay. Hay them model vao `config/model` hoac chon model khac.")
+                    st.error("Khong co model hop le de chay. Hay them model vao `configs/models` hoac chon model khac.")
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
@@ -340,7 +346,7 @@ with tab1:
                         "outputs": [
                             {
                                 "label": "System",
-                                "error": "Khong co model hop le de chay. Hay them model vao `config/model` hoac chon model khac.",
+                                "error": "Khong co model hop le de chay. Hay them model vao `configs/models` hoac chon model khac.",
                             }
                         ],
                         "contexts": [],
@@ -402,7 +408,7 @@ with tab2:
     selected_batch_labels = st.multiselect(
         "Models de danh gia",
         list(MODEL_OPTIONS.keys()),
-        default=["Qwen 2.5 0.5B"],
+        default=[l for l in MODEL_OPTIONS.keys() if "(GGUF)" in l],
         key="batch_models",
     )
 
@@ -434,7 +440,7 @@ with tab2:
 
     if st.button("Bat dau chay batch", type="primary"):
         if not selected_batch_models:
-            st.error("Khong co model hop le de chay batch. Hay them model vao `config/model` hoac chon model khac.")
+            st.error("Khong co model hop le de chay batch. Hay them model vao `configs/models` hoac chon model khac.")
         else:
             run_id = make_run_id()
             run_dir = RUNS_DIR / run_id
