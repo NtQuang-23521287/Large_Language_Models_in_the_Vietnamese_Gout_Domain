@@ -11,21 +11,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
 MODEL_DIR = PROJECT_ROOT / "config" / "model"
 
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
 import pandas as pd
 import streamlit as st
 
-from gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
-from gout_eval.adapters.gguf_adapter import GGUFAdapter
-from gout_eval.adapters.hf_adapter import HFAdapter
-from gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
-from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
-from gout_eval.generation.prompt_builder import build_prompt
-from gout_eval.generation.retriever import FaissRetriever
-from gout_eval.pipeline.stage_generate import load_testset
-from gout_eval.storage.artifacts import append_jsonl
+from src.gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
+from src.gout_eval.adapters.gguf_adapter import GGUFAdapter
+from src.gout_eval.adapters.hf_adapter import HFAdapter
+from src.gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
+from src.gout_eval.evaluation.judge import GPTJudge, JudgeConfig
+from src.gout_eval.generation.prompt_builder import build_prompt
+from src.gout_eval.generation.retriever import FaissRetriever
+from src.gout_eval.pipeline.stage_generate import load_testset
+from src.gout_eval.storage.artifacts import append_jsonl
 
 # Khởi tạo các model (adapters) từ Backend
 if "adapters" not in st.session_state:
