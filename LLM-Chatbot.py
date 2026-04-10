@@ -429,7 +429,7 @@ with tab2:
     st.success(f"Da nap {len(testset_data)} cau hoi tu `{TESTSET_PATH}`")
 
     with st.expander("Preview testset"):
-        st.dataframe(pd.DataFrame(testset_data), use_container_width=True)
+        st.dataframe(pd.DataFrame(testset_data), width="stretch")
 
     num_run = st.slider(
         "So cau hoi muon chay",
@@ -546,7 +546,7 @@ with tab2:
 
             result_df = pd.DataFrame(display_rows)
             st.subheader("Bang ket qua chi tiet")
-            st.dataframe(result_df, use_container_width=True)
+            st.dataframe(result_df, width="stretch")
 
             if judge_enabled and judge_records:
                 summary = aggregate_results(judge_records)
@@ -555,7 +555,7 @@ with tab2:
 
                 summary_df = summary_to_dataframe(summary)
                 st.subheader("Tong hop metric theo model")
-                st.dataframe(summary_df, use_container_width=True)
+                st.dataframe(summary_df, width="stretch")
 
                 metric_columns = [
                     "faithfulness_mean",
