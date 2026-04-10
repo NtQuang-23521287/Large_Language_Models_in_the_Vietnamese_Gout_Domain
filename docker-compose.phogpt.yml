@@ -9,7 +9,7 @@ services:
     environment:
       PHOGPT_MODEL_NAME: "vinai/PhoGPT-4B-Chat"
       PHOGPT_REVISION: ""
-      PHOGPT_FORCE_DOWNLOAD: "false"
+      PHOGPT_FORCE_DOWNLOAD: "true"
       PHOGPT_SERVICE_HOST: "0.0.0.0"
       PHOGPT_SERVICE_PORT: "8001"
     volumes:

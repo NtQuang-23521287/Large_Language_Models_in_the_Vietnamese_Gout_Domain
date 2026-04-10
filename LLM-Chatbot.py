@@ -1,5 +1,5 @@
 from __future__ import annotations
-from gout_eval.adapters.api_adapter import APIAdapter
+from src.gout_eval.adapters.api_adapter import APIAdapter
 
 import os
 import sys
