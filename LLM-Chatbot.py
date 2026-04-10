@@ -375,7 +375,7 @@ with tab1:
 # TAB 2: ĐÁNH GIÁ HÀNG LOẠT
 # ==========================================
 with tab2:
-    st.subheader(" Cấu hìn")
+    st.subheader(" Cấu hình")
 
     selected_batch_labels = st.multiselect(
         "Chọn các Mô hình để đưa vào đường đua",
