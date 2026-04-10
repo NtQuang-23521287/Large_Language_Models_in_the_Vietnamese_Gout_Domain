@@ -4,13 +4,13 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from gout_eval.adapters.base import BaseAdapter
-from gout_eval.generation.prompt_builder import build_prompt
-from gout_eval.storage.artifacts import append_jsonl
+from src.gout_eval.adapters.base import BaseAdapter
+from src.gout_eval.generation.prompt_builder import build_prompt
+from src.gout_eval.storage.artifacts import append_jsonl
 
 # Optional import: chỉ dùng khi bật RAG
 try:
-    from gout_eval.generation.retriever import FaissRetriever
+    from src.gout_eval.generation.retriever import FaissRetriever
 except Exception:
     FaissRetriever = None  # type: ignore
 

@@ -11,8 +11,8 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from gout_eval.adapters.hf_adapter import HFAdapter
-from gout_eval.pipeline.stage_generate import generate_answers
+from src.gout_eval.adapters.hf_adapter import HFAdapter
+from src.gout_eval.pipeline.stage_generate import generate_answers
 
 
 def make_run_id() -> str:
@@ -122,8 +122,8 @@ def main() -> None:
     print(f"[DONE] Artifacts saved to: {artifacts_path}")
 
     if args.judge:
-        from gout_eval.evaluation.stage_judge import stage_judge
-        from gout_eval.evaluation.aggregate_results import (
+        from src.gout_eval.evaluation.stage_judge import stage_judge
+        from src.gout_eval.evaluation.aggregate_results import (
             aggregate_results,
             load_jsonl,
             save_summary,

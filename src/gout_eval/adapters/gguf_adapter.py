@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from gout_eval.adapters.base import BaseAdapter, GenerationResult
+from src.gout_eval.adapters.base import BaseAdapter, GenerationResult
 
 try:
     from llama_cpp import Llama

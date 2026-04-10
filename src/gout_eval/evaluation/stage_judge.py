@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 from tqdm import tqdm
 
-from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
+from src.gout_eval.evaluation.judge import GPTJudge, JudgeConfig
 
 
 def load_jsonl(path: str | Path) -> List[Dict[str, Any]]:
