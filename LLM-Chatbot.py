@@ -523,14 +523,14 @@ with tab2:
 
                     progress_bar.progress(current_step / total_steps)
 
-            status_text.success(" HOÀN TẤT ĐÁNH GIÁ HÀNG LOẠT!")
+            status_text.success("Hoàn tất đánh giá hàng loạt!")
             st.caption(f" File lưu trữ kết quả (Artifacts): `{artifacts_path}`")
             if judge_enabled:
                 st.caption(f" File lưu trữ điểm số (Judge results): `{judge_path}`")
 
             result_df = pd.DataFrame(display_rows)
-            st.subheader(" Bảng Kết quả Chi tiết")
-            st.dataframe(result_df, width="stretch")
+            st.subheader(" Bảng kết quả chi tiết")
+            st.table(pd.DataFrame(display_rows))
 
             if judge_enabled and judge_records:
                 summary = aggregate_results(judge_records)
