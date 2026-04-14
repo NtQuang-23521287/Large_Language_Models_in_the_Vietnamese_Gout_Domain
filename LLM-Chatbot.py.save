@@ -1,5 +1,4 @@
 from __future__ import annotations
-from src.gout_eval.adapters.api_adapter import APIAdapter
 
 import os
 import sys
@@ -15,9 +14,7 @@ MODEL_DIR = PROJECT_ROOT / "configs" / "models"
 import pandas as pd
 import streamlit as st
 
-from src.gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
 from src.gout_eval.adapters.gguf_adapter import GGUFAdapter
-from src.gout_eval.adapters.hf_adapter import HFAdapter
 from src.gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
 from src.gout_eval.evaluation.judge import GPTJudge, JudgeConfig
 from src.gout_eval.generation.prompt_builder import build_prompt
@@ -25,29 +22,12 @@ from src.gout_eval.generation.retriever import FaissRetriever
 from src.gout_eval.pipeline.stage_generate import load_testset
 from src.gout_eval.storage.artifacts import append_jsonl
 
-# Khởi tạo các model (adapters) từ Backend
-if "adapters" not in st.session_state:
-    st.session_state.adapters = {
-        "PhoGPT": DummyAdapter("PhoGPT"),
-        "Vistral": DummyAdapter("Vistral"),
-        "VinaLLaMA": DummyAdapter("VinaLLaMA"),
-    }
-
-# Khởi tạo Giám khảo
-if "judge" not in st.session_state:
-    st.session_state.judge = GPT4JudgeAdapter()
-
 GGUF_N_CTX = int(os.getenv("GGUF_N_CTX", "4096"))
 GGUF_N_GPU_LAYERS = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
 GGUF_N_THREADS = int(os.getenv("GGUF_N_THREADS", "4"))
 
-# THÊM CÁC MODEL GGUF VỚI TÊN ĐẸP VÀO ĐÂY
 BASE_MODEL_OPTIONS = {
-    # Nhóm API (Chạy bằng Docker/GPU)
-    "Qwen 2.5 0.5B (API)": "Qwen/Qwen2.5-0.5B-Instruct",
-    "PhoGPT 4B Chat (API)": "vinai/PhoGPT-4B-Chat",
-    
-    # Nhóm GGUF (Chạy bằng CPU)
+    # Nhóm GGUF (chạy local)
     "PhoGPT 4B (GGUF)": str(PROJECT_ROOT / "configs" / "models" / "PhoGPT-4B-Chat-Q4_K_M.gguf"),
     "VinaLLaMA 7B (GGUF)": str(PROJECT_ROOT / "configs" / "models" / "vinallama-7b-chat.Q4_K_M.gguf"),
     "Vistral 7B (GGUF)": str(PROJECT_ROOT / "configs" / "models" / "ggml-vistral-7B-chat-q4_0.gguf"),
@@ -102,31 +82,24 @@ def get_model_options() -> Dict[str, str]:
 
 @st.cache_resource(show_spinner=False)
 def get_adapter(model_name: str):
-    if is_gguf_model_name(model_name):
-        model_path = normalize_gguf_path(model_name)
-        path_obj = Path(model_path)
-        if not path_obj.exists():
-            raise FileNotFoundError(f"GGUF file not found: {path_obj}")
-        if not path_obj.is_file():
-            raise FileNotFoundError(f"GGUF path is not a file: {path_obj}")
-
-        return GGUFAdapter(
-            model_path=str(path_obj.resolve()),
-            n_ctx=GGUF_N_CTX,
-            n_gpu_layers=GGUF_N_GPU_LAYERS,
-            n_threads=GGUF_N_THREADS,
+    if not is_gguf_model_name(model_name):
+        raise ValueError(
+            "UI hiện chỉ hỗ trợ model GGUF local. Hãy chọn file .gguf trong `configs/models`."
         )
 
-    # ĐÂY LÀ ĐIỂM QUAN TRỌNG: Nối UI với Docker Backend
-    if "PhoGPT" in model_name:
-        return APIAdapter(
-            base_url="http://35.185.133.4:8001", 
-            model_name=model_name,
-            timeout=300
-        )
+    model_path = normalize_gguf_path(model_name)
+    path_obj = Path(model_path)
+    if not path_obj.exists():
+        raise FileNotFoundError(f"GGUF file not found: {path_obj}")
+    if not path_obj.is_file():
+        raise FileNotFoundError(f"GGUF path is not a file: {path_obj}")
 
-    # Với các model còn lại (như Qwen), cứ dùng HFAdapter chạy trực tiếp
-    return HFAdapter(model_name=model_name)
+    return GGUFAdapter(
+        model_path=str(path_obj.resolve()),
+        n_ctx=GGUF_N_CTX,
+        n_gpu_layers=GGUF_N_GPU_LAYERS,
+        n_threads=GGUF_N_THREADS,
+    )
 
 
 @st.cache_resource(show_spinner=False)
