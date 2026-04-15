@@ -18,10 +18,16 @@ import streamlit as st
 from src.gout_eval.adapters.dummy_adapter import DummyAdapter, GPT4JudgeAdapter
 from src.gout_eval.adapters.gguf_adapter import GGUFAdapter
 from src.gout_eval.adapters.hf_adapter import HFAdapter
-from src.gout_eval.evaluation.aggregate_results import aggregate_results, save_summary
+from src.gout_eval.evaluation.aggregate_results import (
+    aggregate_results,
+    load_jsonl,
+    merge_eval_records,
+    save_summary,
+)
 from src.gout_eval.evaluation.judge import GPTJudge, JudgeConfig
 from src.gout_eval.generation.prompt_builder import build_prompt
 from src.gout_eval.generation.retriever import FaissRetriever
+from src.gout_eval.pipeline.stage_ragas import stage_ragas
 from src.gout_eval.pipeline.stage_generate import load_testset
 from src.gout_eval.storage.artifacts import append_jsonl
 
@@ -406,6 +412,9 @@ with tab2:
     temperature_batch = st.slider("Temperature batch", min_value=0.0, max_value=1.0, value=0.2, step=0.1, key="batch_temperature")
     judge_enabled = st.checkbox("Bat LLM-as-a-Judge", value=False)
     judge_model = st.text_input("Judge model", value="gpt-4o-mini")
+    ragas_enabled = st.checkbox("Bat RAGAS", value=False)
+    ragas_llm_model = st.text_input("RAGAS LLM model", value="gpt-4o-mini")
+    ragas_embedding_model = st.text_input("RAGAS embedding model", value="text-embedding-3-small")
 
     raw_testset = load_testset(TESTSET_PATH)
     testset_data = [normalize_test_row(sample, idx) for idx, sample in enumerate(raw_testset)]
@@ -429,12 +438,14 @@ with tab2:
             run_dir = RUNS_DIR / run_id
             artifacts_path = run_dir / "artifacts" / "artifacts.jsonl"
             judge_path = run_dir / "judge" / "judge_results.jsonl"
+            ragas_path = run_dir / "ragas" / "ragas_results.jsonl"
             summary_path = run_dir / "judge" / "summary.json"
 
             progress_bar = st.progress(0)
             status_text = st.empty()
             display_rows: List[Dict[str, Any]] = []
             judge_records: List[Dict[str, Any]] = []
+            ragas_records: List[Dict[str, Any]] = []
 
             total_steps = max(1, len(selected_batch_models) * num_run)
             current_step = 0
@@ -495,6 +506,7 @@ with tab2:
                                 "Question ID": question_id,
                                 "Risk level": risk_level,
                                 "Model": label,
+                                "Model Name": model_name,
                                 "Question": question,
                                 "Answer": output["answer"],
                                 "Faithfulness": None if not judge_output else judge_output.get("faithfulness", {}).get("score"),
@@ -502,6 +514,9 @@ with tab2:
                                 "Completeness": None if not judge_output else judge_output.get("completeness", {}).get("score"),
                                 "Hallucination": None if not judge_output else judge_output.get("hallucination_severity", {}).get("level"),
                                 "Judge comment": None if not judge_output else judge_output.get("overall_comment"),
+                                "RAGAS Faithfulness": None,
+                                "RAGAS Answer Relevancy": None,
+                                "RAGAS Context Recall": None,
                             }
                         )
                     except Exception as exc:
@@ -510,6 +525,7 @@ with tab2:
                                 "Question ID": question_id,
                                 "Risk level": risk_level,
                                 "Model": label,
+                                "Model Name": model_name,
                                 "Question": question,
                                 "Answer": f"ERROR: {exc}",
                                 "Faithfulness": None,
@@ -517,22 +533,53 @@ with tab2:
                                 "Completeness": None,
                                 "Hallucination": None,
                                 "Judge comment": None,
+                                "RAGAS Faithfulness": None,
+                                "RAGAS Answer Relevancy": None,
+                                "RAGAS Context Recall": None,
                             }
                         )
 
                     progress_bar.progress(current_step / total_steps)
 
+            if ragas_enabled:
+                status_text.text("Dang chay RAGAS tren artifacts...")
+                stage_ragas(
+                    artifacts_path=artifacts_path,
+                    output_path=ragas_path,
+                    llm_model=ragas_llm_model,
+                    embedding_model=ragas_embedding_model,
+                )
+                ragas_records = load_jsonl(ragas_path)
+
+                ragas_lookup: Dict[tuple[str, str], Dict[str, Any]] = {}
+                for record in ragas_records:
+                    key = (
+                        str(record.get("question_id")),
+                        str(record.get("model_name")),
+                    )
+                    ragas_lookup[key] = record.get("ragas_output", {})
+
+                for row in display_rows:
+                    key = (str(row["Question ID"]), str(row["Model Name"]))
+                    ragas_output = ragas_lookup.get(key, {})
+                    row["RAGAS Faithfulness"] = ragas_output.get("faithfulness")
+                    row["RAGAS Answer Relevancy"] = ragas_output.get("answer_relevancy")
+                    row["RAGAS Context Recall"] = ragas_output.get("context_recall")
+
             status_text.success("Hoan tat batch eval.")
             st.caption(f"Artifacts: `{artifacts_path}`")
             if judge_enabled:
                 st.caption(f"Judge results: `{judge_path}`")
+            if ragas_enabled:
+                st.caption(f"RAGAS results: `{ragas_path}`")
 
             result_df = pd.DataFrame(display_rows)
             st.subheader("Bang ket qua chi tiet")
             st.dataframe(result_df, use_container_width=True)
 
-            if judge_enabled and judge_records:
-                summary = aggregate_results(judge_records)
+            if judge_enabled or ragas_enabled:
+                merged_records = merge_eval_records(judge_records, ragas_records)
+                summary = aggregate_results(merged_records)
                 save_summary(summary_path, summary)
                 st.caption(f"Summary: `{summary_path}`")
 
@@ -545,6 +592,9 @@ with tab2:
                     "context_recall_mean",
                     "completeness_mean",
                     "citation_correctness_mean",
+                    "ragas_faithfulness_mean",
+                    "ragas_answer_relevancy_mean",
+                    "ragas_context_recall_mean",
                     "hallucination_level_mean",
                     "safety_refusal_rate",
                 ]

@@ -81,12 +81,30 @@ def main() -> None:
         default="gpt-4o-mini",
         help="Judge model name used when --judge is enabled.",
     )
+    parser.add_argument(
+        "--ragas",
+        action="store_true",
+        help="Run RAGAS evaluation after generation completes.",
+    )
+    parser.add_argument(
+        "--ragas_llm_model",
+        type=str,
+        default="gpt-4o-mini",
+        help="LLM model name used by RAGAS.",
+    )
+    parser.add_argument(
+        "--ragas_embedding_model",
+        type=str,
+        default="text-embedding-3-small",
+        help="Embedding model name used by RAGAS.",
+    )
     args = parser.parse_args()
 
     run_id = make_run_id()
     run_dir = Path(args.output_dir) / run_id
     artifacts_path = run_dir / "artifacts" / "artifacts.jsonl"
     judge_output_path = run_dir / "judge" / "judge_results.jsonl"
+    ragas_output_path = run_dir / "ragas" / "ragas_results.jsonl"
     summary_output_path = run_dir / "judge" / "summary.json"
 
     adapter = HFAdapter(model_name=args.model_name)
@@ -106,6 +124,10 @@ def main() -> None:
     print(f"[INFO] Judge enabled: {args.judge}")
     if args.judge:
         print(f"[INFO] Judge model: {args.judge_model}")
+    print(f"[INFO] RAGAS enabled: {args.ragas}")
+    if args.ragas:
+        print(f"[INFO] RAGAS LLM model: {args.ragas_llm_model}")
+        print(f"[INFO] RAGAS embedding model: {args.ragas_embedding_model}")
 
     generate_answers(
         run_id=run_id,
@@ -121,11 +143,15 @@ def main() -> None:
 
     print(f"[DONE] Artifacts saved to: {artifacts_path}")
 
+    judge_records = []
+    ragas_records = []
+
     if args.judge:
         from src.gout_eval.evaluation.stage_judge import stage_judge
         from src.gout_eval.evaluation.aggregate_results import (
-            aggregate_results,
             load_jsonl,
+            merge_eval_records,
+            aggregate_results,
             save_summary,
         )
 
@@ -135,9 +161,35 @@ def main() -> None:
             judge_model=args.judge_model,
         )
         print(f"[DONE] Judge results saved to: {judge_output_path}")
-
         judge_records = load_jsonl(judge_output_path)
-        summary = aggregate_results(judge_records)
+
+    if args.ragas:
+        from src.gout_eval.pipeline.stage_ragas import stage_ragas
+        from src.gout_eval.evaluation.aggregate_results import (
+            load_jsonl,
+            merge_eval_records,
+            aggregate_results,
+            save_summary,
+        )
+
+        stage_ragas(
+            artifacts_path=artifacts_path,
+            output_path=ragas_output_path,
+            llm_model=args.ragas_llm_model,
+            embedding_model=args.ragas_embedding_model,
+        )
+        print(f"[DONE] RAGAS results saved to: {ragas_output_path}")
+        ragas_records = load_jsonl(ragas_output_path)
+
+    if args.judge or args.ragas:
+        from src.gout_eval.evaluation.aggregate_results import (
+            aggregate_results,
+            merge_eval_records,
+            save_summary,
+        )
+
+        merged_records = merge_eval_records(judge_records, ragas_records)
+        summary = aggregate_results(merged_records)
         save_summary(summary_output_path, summary)
         print(f"[DONE] Aggregate summary saved to: {summary_output_path}")
 

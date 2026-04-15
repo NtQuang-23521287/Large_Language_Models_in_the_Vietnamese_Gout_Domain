@@ -12,3 +12,6 @@ tqdm
 faiss-cpu
 sentence-transformers
 requests
+datasets
+langchain-openai
+ragas

@@ -36,6 +36,7 @@ def _mean(values: List[float]) -> float | None:
 
 def extract_metrics(sample: Dict[str, Any]) -> Dict[str, Any]:
     judge_output = sample.get("judge_output", {})
+    ragas_output = sample.get("ragas_output", {})
 
     citation_score = safe_get(judge_output, ["citation_correctness", "score"])
     safety_applicable = safe_get(judge_output, ["safety_refusal", "is_applicable"], False)
@@ -54,12 +55,42 @@ def extract_metrics(sample: Dict[str, Any]) -> Dict[str, Any]:
         "citation_correctness": citation_score,
         "safety_applicable": bool(safety_applicable),
         "safety_correct": safety_correct,
+        "ragas_faithfulness": safe_get(ragas_output, ["faithfulness"]),
+        "ragas_answer_relevancy": safe_get(ragas_output, ["answer_relevancy"]),
+        "ragas_context_recall": safe_get(ragas_output, ["context_recall"]),
     }
 
 
+def merge_eval_records(
+    judge_records: List[Dict[str, Any]] | None = None,
+    ragas_records: List[Dict[str, Any]] | None = None,
+) -> List[Dict[str, Any]]:
+    merged: Dict[tuple[Any, Any, Any], Dict[str, Any]] = {}
+
+    for record in judge_records or []:
+        key = (record.get("run_id"), record.get("question_id"), record.get("model_name"))
+        merged[key] = dict(record)
+
+    for record in ragas_records or []:
+        key = (record.get("run_id"), record.get("question_id"), record.get("model_name"))
+        if key not in merged:
+            merged[key] = {
+                "run_id": record.get("run_id"),
+                "question_id": record.get("question_id"),
+                "model_name": record.get("model_name"),
+            }
+        merged[key]["ragas_output"] = record.get("ragas_output")
+        if "error" in record:
+            merged[key]["ragas_error"] = record["error"]
+
+    return list(merged.values())
+
+
 def aggregate_results(records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    valid_records = [record for record in records if "judge_output" in record and "error" not in record]
-    error_records = [record for record in records if "error" in record]
+    valid_judge_records = [record for record in records if "judge_output" in record and "error" not in record]
+    valid_ragas_records = [record for record in records if "ragas_output" in record and "ragas_error" not in record]
+    valid_records = [record for record in records if ("judge_output" in record or "ragas_output" in record)]
+    error_records = [record for record in records if "error" in record or "ragas_error" in record]
 
     grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for record in valid_records:
@@ -68,7 +99,8 @@ def aggregate_results(records: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     summary: Dict[str, Any] = {
         "num_samples": len(records),
-        "num_valid_judged_samples": len(valid_records),
+        "num_valid_judged_samples": len(valid_judge_records),
+        "num_valid_ragas_samples": len(valid_ragas_records),
         "num_error_samples": len(error_records),
         "models": {},
     }
@@ -80,6 +112,9 @@ def aggregate_results(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         citation_scores: List[float] = []
         hallucination_levels: List[float] = []
         safety_correct_values: List[float] = []
+        ragas_faithfulness_scores: List[float] = []
+        ragas_answer_relevancy_scores: List[float] = []
+        ragas_context_recall_scores: List[float] = []
         safety_applicable_count = 0
         hallucination_ge_1 = 0
         hallucination_ge_2 = 0
@@ -96,6 +131,12 @@ def aggregate_results(records: List[Dict[str, Any]]) -> Dict[str, Any]:
                 completeness_scores.append(float(metrics["completeness"]))
             if metrics["citation_correctness"] is not None:
                 citation_scores.append(float(metrics["citation_correctness"]))
+            if metrics["ragas_faithfulness"] is not None:
+                ragas_faithfulness_scores.append(float(metrics["ragas_faithfulness"]))
+            if metrics["ragas_answer_relevancy"] is not None:
+                ragas_answer_relevancy_scores.append(float(metrics["ragas_answer_relevancy"]))
+            if metrics["ragas_context_recall"] is not None:
+                ragas_context_recall_scores.append(float(metrics["ragas_context_recall"]))
 
             hallucination_level = float(metrics["hallucination_level"])
             hallucination_levels.append(hallucination_level)
@@ -118,6 +159,9 @@ def aggregate_results(records: List[Dict[str, Any]]) -> Dict[str, Any]:
             "context_recall_mean": _mean(context_recall_scores),
             "completeness_mean": _mean(completeness_scores),
             "citation_correctness_mean": _mean(citation_scores),
+            "ragas_faithfulness_mean": _mean(ragas_faithfulness_scores),
+            "ragas_answer_relevancy_mean": _mean(ragas_answer_relevancy_scores),
+            "ragas_context_recall_mean": _mean(ragas_context_recall_scores),
             "hallucination_level_mean": _mean(hallucination_levels),
             "hallucination_rate_ge_1": hallucination_ge_1 / num_model_samples if num_model_samples else None,
             "hallucination_rate_ge_2": hallucination_ge_2 / num_model_samples if num_model_samples else None,
@@ -140,8 +184,20 @@ def main() -> None:
     parser.add_argument(
         "--input_path",
         type=str,
-        required=True,
+        required=False,
+        help="Path to merged results JSONL or judge_results.jsonl",
+    )
+    parser.add_argument(
+        "--judge_input_path",
+        type=str,
+        required=False,
         help="Path to judge_results.jsonl",
+    )
+    parser.add_argument(
+        "--ragas_input_path",
+        type=str,
+        required=False,
+        help="Path to ragas_results.jsonl",
     )
     parser.add_argument(
         "--output_path",
@@ -151,7 +207,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    records = load_jsonl(args.input_path)
+    if args.input_path:
+        records = load_jsonl(args.input_path)
+    else:
+        judge_records = load_jsonl(args.judge_input_path) if args.judge_input_path else []
+        ragas_records = load_jsonl(args.ragas_input_path) if args.ragas_input_path else []
+        records = merge_eval_records(judge_records, ragas_records)
     summary = aggregate_results(records)
     save_summary(args.output_path, summary)
     print(f"[OK] Saved aggregate summary to: {args.output_path}")
