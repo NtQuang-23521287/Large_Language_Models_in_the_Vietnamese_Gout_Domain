@@ -598,7 +598,7 @@ with tab2:
     max_tokens_batch = st.slider("Max tokens batch", min_value=32, max_value=256, value=128, step=32, key="batch_max_tokens")
     temperature_batch = st.slider("Temperature batch", min_value=0.0, max_value=1.0, value=0.2, step=0.1, key="batch_temperature")
     judge_enabled = st.checkbox("Bat LLM-as-a-Judge", value=False)
-    judge_model = st.text_input("Judge model", value="gpt-4o-mini")
+    judge_model = st.text_input("Judge model", value="gpt-5")
     ragas_enabled = st.checkbox("Bat RAGAS", value=False)
     ragas_llm_model = st.text_input("RAGAS LLM model", value="gpt-4o-mini")
     ragas_embedding_model = st.text_input("RAGAS embedding model", value="text-embedding-3-small")
