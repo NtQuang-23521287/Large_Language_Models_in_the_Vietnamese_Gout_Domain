@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -56,7 +56,27 @@ BASE_MODEL_OPTIONS = {
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
-TESTSET_PATH = PROJECT_ROOT / "data" / "testset" / "gout_test_cases.jsonl"
+TESTSET_DIR = PROJECT_ROOT / "data" / "testset"
+
+TESTSET_OPTIONS = {
+    "Single JSON - gout_test_cases.json": {
+        "path": TESTSET_DIR / "gout_test_cases.json",
+        "scenario": "single",
+    },
+    "Single JSONL - gout_test_cases.jsonl": {
+        "path": TESTSET_DIR / "gout_test_cases.jsonl",
+        "scenario": "single",
+    },
+    "Multi JSON - gout_multi_turn_test_cases.json": {
+        "path": TESTSET_DIR / "gout_multi_turn_test_cases.json",
+        "scenario": "multi",
+    },
+    "Multi JSONL - gout_multi_turn_test_cases.jsonl": {
+        "path": TESTSET_DIR / "gout_multi_turn_test_cases.jsonl",
+        "scenario": "multi",
+    },
+}
+
 RUNS_DIR = PROJECT_ROOT / "runs"
 
 def make_run_id() -> str:
@@ -137,13 +157,164 @@ def get_judge(model_name: str) -> GPTJudge:
     return GPTJudge(config=JudgeConfig(model_name=model_name))
 
 
-def normalize_test_row(sample: Dict[str, Any], idx: int) -> Dict[str, str]:
+def normalize_single_test_row(
+    sample: Dict[str, Any],
+    idx: int,
+    dataset_label: str,
+) -> Dict[str, Any]:
+    question_id = str(
+        sample.get("question_id")
+        or sample.get("id")
+        or f"SINGLE_{idx + 1:03d}"
+    )
+
     return {
-        "question_id": sample.get("question_id", f"Q_{idx + 1:03d}"),
+        "scenario": "single",
+        "dataset_label": dataset_label,
+        "conversation_id": "",
+        "turn_id": "",
+        "turn_index": 0,
+        "question_id": question_id,
         "risk_level": str(sample.get("risk_level", sample.get("cap_do", ""))),
         "question": sample.get("question", sample.get("cau_hoi", "")),
         "ground_truth": sample.get("ground_truth", ""),
     }
+
+
+def normalize_multi_turn_rows(
+    sample: Dict[str, Any],
+    idx: int,
+    dataset_label: str,
+) -> List[Dict[str, Any]]:
+    conversation_id = str(
+        sample.get("conversation_id")
+        or sample.get("id")
+        or sample.get("question_id")
+        or f"MULTI_{idx + 1:03d}"
+    )
+
+    risk_level = str(
+        sample.get("risk_level")
+        or sample.get("original_cap_do")
+        or sample.get("cap_do")
+        or ""
+    )
+
+    turns = sample.get("turns", [])
+    rows: List[Dict[str, Any]] = []
+
+    for turn_idx, turn in enumerate(turns):
+        turn_id = str(turn.get("turn_id", turn_idx + 1))
+        user_question = (
+            turn.get("user")
+            or turn.get("question")
+            or turn.get("cau_hoi")
+            or ""
+        )
+
+        rows.append(
+            {
+                "scenario": "multi",
+                "dataset_label": dataset_label,
+                "conversation_id": conversation_id,
+                "turn_id": turn_id,
+                "turn_index": turn_idx,
+                "question_id": f"{conversation_id}__T{turn_id}",
+                "risk_level": risk_level,
+                "question": user_question,
+                "ground_truth": turn.get("ground_truth", ""),
+            }
+        )
+
+    return rows
+
+
+def load_eval_testsets(selected_dataset_labels: List[str]) -> List[Dict[str, Any]]:
+    """
+    Load nhiều file testset cùng lúc.
+    Hỗ trợ:
+    - single JSON
+    - single JSONL
+    - multi JSON
+    - multi JSONL
+    """
+    all_rows: List[Dict[str, Any]] = []
+
+    for dataset_label in selected_dataset_labels:
+        cfg = TESTSET_OPTIONS[dataset_label]
+        path = Path(cfg["path"])
+        scenario = cfg["scenario"]
+
+        if not path.exists():
+            st.warning(f"Khong tim thay file testset: `{path}`")
+            continue
+
+        raw_items = load_testset(path)
+
+        if scenario == "single":
+            for idx, sample in enumerate(raw_items):
+                all_rows.append(
+                    normalize_single_test_row(
+                        sample=sample,
+                        idx=idx,
+                        dataset_label=dataset_label,
+                    )
+                )
+
+        elif scenario == "multi":
+            for idx, sample in enumerate(raw_items):
+                all_rows.extend(
+                    normalize_multi_turn_rows(
+                        sample=sample,
+                        idx=idx,
+                        dataset_label=dataset_label,
+                    )
+                )
+
+    return all_rows
+
+
+def build_multiturn_question(
+    *,
+    current_question: str,
+    history: List[Dict[str, str]],
+) -> str:
+    """
+    Tạo input có lịch sử hội thoại cho multi-turn.
+    Lưu ý: đây là cách đơn giản để dùng lại build_prompt(question, contexts)
+    mà không phải sửa prompt_builder.
+    """
+    if not history:
+        return current_question
+
+    lines: List[str] = [
+        "Đây là một hội thoại nhiều lượt về bệnh Gút.",
+        "Hãy trả lời câu hỏi hiện tại dựa trên lịch sử hội thoại trước đó.",
+        "",
+        "LỊCH SỬ HỘI THOẠI:",
+    ]
+
+    for idx, item in enumerate(history, start=1):
+        lines.append(f"Lượt {idx} - Người dùng: {item['user']}")
+        lines.append(f"Lượt {idx} - Trợ lý: {item['assistant']}")
+        lines.append("")
+
+    lines.extend(
+        [
+            "CÂU HỎI HIỆN TẠI:",
+            current_question,
+        ]
+    )
+
+    return "\n".join(lines)
+
+
+def get_model_display_name(label: str, model_name: str) -> str:
+    """
+    Dùng label dễ đọc để aggregate/pairwise.
+    Ví dụ: PhoGPT 4B, VinaLLaMA 7B, Vistral 7B.
+    """
+    return label or model_name
 
 def build_contexts(question: str, use_rag: bool, top_k: int) -> List[str]:
     if not use_rag:
@@ -204,25 +375,41 @@ def build_artifact_record(
     top_k: int,
     max_tokens: int,
     temperature: float,
+    scenario: str = "single",
+    dataset_label: str = "",
+    conversation_id: str = "",
+    turn_id: str = "",
+    turn_index: int = 0,
+    model_display_name: str = "",
 ) -> Dict[str, Any]:
-    return {
-        "run_id": run_id,
-        "question_id": question_id,
-        "question": question,
-        "risk_level": risk_level,
-        "ground_truth": ground_truth,
-        "contexts": contexts,
-        "retrieved_chunks": [],
-        "prompt": prompt,
-        "answer": answer,
-        "meta": meta,
-        "generation_config": {
-            "rag_enabled": bool(contexts),
-            "top_k": top_k if contexts else 0,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        },
-    }
+        safe_meta = dict(meta or {})
+        if model_display_name:
+            safe_meta["model_name"] = model_display_name
+
+        return {
+            "run_id": run_id,
+            "scenario": scenario,
+            "dataset_label": dataset_label,
+            "conversation_id": conversation_id,
+            "turn_id": turn_id,
+            "turn_index": turn_index,
+            "question_id": question_id,
+            "question": question,
+            "risk_level": risk_level,
+            "ground_truth": ground_truth,
+            "contexts": contexts,
+            "retrieved_chunks": [],
+            "prompt": prompt,
+            "answer": answer,
+            "meta": safe_meta,
+            "generation_config": {
+                "rag_enabled": bool(contexts),
+                "top_k": top_k if contexts else 0,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+        }
+
 
 def build_judge_record(
     artifact: Dict[str, Any],
@@ -416,15 +603,73 @@ with tab2:
     ragas_llm_model = st.text_input("RAGAS LLM model", value="gpt-4o-mini")
     ragas_embedding_model = st.text_input("RAGAS embedding model", value="text-embedding-3-small")
 
-    raw_testset = load_testset(TESTSET_PATH)
-    testset_data = [normalize_test_row(sample, idx) for idx, sample in enumerate(raw_testset)]
-    st.success(f"Da nap {len(testset_data)} cau hoi tu `{TESTSET_PATH}`")
+    st.markdown("### Chon kich ban testset")
 
-    with st.expander("Preview testset"):
-        st.dataframe(pd.DataFrame(testset_data), use_container_width=True)
+    scenario_mode = st.radio(
+        "Che do chay",
+        [
+            "Chi chay single-turn",
+            "Chi chay multi-turn",
+            "Chay ca single-turn va multi-turn",
+            "Tuy chon file testset",
+        ],
+        index=0,
+        horizontal=True,
+    )
+
+    if scenario_mode == "Chi chay single-turn":
+        default_dataset_labels = [
+            "Single JSONL - gout_test_cases.jsonl",
+        ]
+    elif scenario_mode == "Chi chay multi-turn":
+        default_dataset_labels = [
+            "Multi JSONL - gout_multi_turn_test_cases.jsonl",
+        ]
+    elif scenario_mode == "Chay ca single-turn va multi-turn":
+        default_dataset_labels = [
+            "Single JSONL - gout_test_cases.jsonl",
+            "Multi JSONL - gout_multi_turn_test_cases.jsonl",
+        ]
+    else:
+        default_dataset_labels = [
+            "Single JSONL - gout_test_cases.jsonl",
+        ]
+
+    selected_dataset_labels = st.multiselect(
+        "Testset files",
+        list(TESTSET_OPTIONS.keys()),
+        default=default_dataset_labels,
+        key="selected_testset_files",
+    )
+
+    testset_data = load_eval_testsets(selected_dataset_labels)
+
+    if not testset_data:
+        st.error("Chua nap duoc testset nao. Hay kiem tra file trong `data/testset/`.")
+        st.stop()
+
+    st.success(
+        f"Da nap {len(testset_data)} luot hoi tu {len(selected_dataset_labels)} file testset."
+    )
+
+    testset_overview_df = pd.DataFrame(testset_data)
+    overview_cols = [
+        "scenario",
+        "dataset_label",
+        "conversation_id",
+        "turn_id",
+        "question_id",
+        "risk_level",
+        "question",
+        "ground_truth",
+    ]
+    overview_cols = [col for col in overview_cols if col in testset_overview_df.columns]
+
+    with st.expander("Preview testset da nap"):
+        st.dataframe(testset_overview_df[overview_cols], use_container_width=True)
 
     num_run = st.slider(
-        "So cau hoi muon chay",
+        "So luot hoi muon chay",
         min_value=1,
         max_value=len(testset_data),
         value=min(5, len(testset_data)),
@@ -450,21 +695,55 @@ with tab2:
             total_steps = max(1, len(selected_batch_models) * num_run)
             current_step = 0
 
+                        # Luu lich su hoi thoai rieng cho tung model trong multi-turn.
+            # Key = (dataset_label, conversation_id, model_display_name)
+            conversation_histories: Dict[Tuple[str, str, str], List[Dict[str, str]]] = {}
+
             for sample in testset_data[:num_run]:
+                scenario = sample["scenario"]
+                dataset_label = sample["dataset_label"]
+                conversation_id = sample.get("conversation_id", "")
+                turn_id = sample.get("turn_id", "")
+                turn_index = int(sample.get("turn_index", 0))
+
                 question_id = sample["question_id"]
-                question = sample["question"]
+                raw_question = sample["question"]
                 ground_truth = sample["ground_truth"]
                 risk_level = sample["risk_level"]
-                contexts = build_contexts(question, use_rag_batch, top_k_batch)
+
+                # RAG nên retrieve theo câu hỏi hiện tại, không retrieve theo toàn bộ history,
+                # để tránh nhiễu context.
+                contexts = build_contexts(raw_question, use_rag_batch, top_k_batch)
 
                 for label, model_name in zip(selected_batch_labels_effective, selected_batch_models):
                     current_step += 1
-                    status_text.text(f"Dang generate {label} - {question_id} ({current_step}/{total_steps})...")
+                    model_display_name = get_model_display_name(label, model_name)
+
+                    status_text.text(
+                        f"Dang generate {model_display_name} - {question_id} "
+                        f"({current_step}/{total_steps})..."
+                    )
+
+                    history_key = (
+                        dataset_label,
+                        conversation_id,
+                        model_display_name,
+                    )
+
+                    model_history = conversation_histories.get(history_key, [])
+
+                    if scenario == "multi":
+                        generation_question = build_multiturn_question(
+                            current_question=raw_question,
+                            history=model_history,
+                        )
+                    else:
+                        generation_question = raw_question
 
                     try:
                         output = generate_answer(
                             model_name=model_name,
-                            question=question,
+                            question=generation_question,
                             contexts=contexts,
                             max_tokens=max_tokens_batch,
                             temperature=temperature_batch,
@@ -473,7 +752,7 @@ with tab2:
                         artifact = build_artifact_record(
                             run_id=run_id,
                             question_id=question_id,
-                            question=question,
+                            question=generation_question,
                             risk_level=risk_level,
                             ground_truth=ground_truth,
                             contexts=contexts,
@@ -483,15 +762,35 @@ with tab2:
                             top_k=top_k_batch,
                             max_tokens=max_tokens_batch,
                             temperature=temperature_batch,
+                            scenario=scenario,
+                            dataset_label=dataset_label,
+                            conversation_id=conversation_id,
+                            turn_id=turn_id,
+                            turn_index=turn_index,
+                            model_display_name=model_display_name,
                         )
                         append_jsonl(artifacts_path, artifact)
 
+                        # Cap nhat history sau khi model tra loi.
+                        if scenario == "multi":
+                            model_history.append(
+                                {
+                                    "user": raw_question,
+                                    "assistant": output["answer"],
+                                }
+                            )
+                            conversation_histories[history_key] = model_history
+
                         judge_output = None
                         if judge_enabled:
-                            status_text.text(f"Dang judge {label} - {question_id}...")
+                            status_text.text(f"Dang judge {model_display_name} - {question_id}...")
+
+                            # Judge cũng nên thấy history trong question để chấm đúng bối cảnh.
+                            judge_question = generation_question
+
                             judge_output = judge_answer(
                                 judge_model=judge_model,
-                                question=question,
+                                question=judge_question,
                                 ground_truth=ground_truth,
                                 answer=output["answer"],
                                 contexts=contexts,
@@ -503,11 +802,16 @@ with tab2:
 
                         display_rows.append(
                             {
+                                "Scenario": scenario,
+                                "Dataset": dataset_label,
+                                "Conversation ID": conversation_id,
+                                "Turn ID": turn_id,
                                 "Question ID": question_id,
                                 "Risk level": risk_level,
-                                "Model": label,
+                                "Model": model_display_name,
                                 "Model Name": model_name,
-                                "Question": question,
+                                "Question": raw_question,
+                                "Generation Question": generation_question,
                                 "Answer": output["answer"],
                                 "Faithfulness": None if not judge_output else judge_output.get("faithfulness", {}).get("score"),
                                 "Context Recall": None if not judge_output else judge_output.get("context_recall", {}).get("score"),
@@ -519,14 +823,20 @@ with tab2:
                                 "RAGAS Context Recall": None,
                             }
                         )
+
                     except Exception as exc:
                         display_rows.append(
                             {
+                                "Scenario": scenario,
+                                "Dataset": dataset_label,
+                                "Conversation ID": conversation_id,
+                                "Turn ID": turn_id,
                                 "Question ID": question_id,
                                 "Risk level": risk_level,
-                                "Model": label,
+                                "Model": model_display_name,
                                 "Model Name": model_name,
-                                "Question": question,
+                                "Question": raw_question,
+                                "Generation Question": generation_question,
                                 "Answer": f"ERROR: {exc}",
                                 "Faithfulness": None,
                                 "Context Recall": None,
@@ -560,7 +870,7 @@ with tab2:
                     ragas_lookup[key] = record.get("ragas_output", {})
 
                 for row in display_rows:
-                    key = (str(row["Question ID"]), str(row["Model Name"]))
+                    key = (str(row["Question ID"]), str(row["Model"]))
                     ragas_output = ragas_lookup.get(key, {})
                     row["RAGAS Faithfulness"] = ragas_output.get("faithfulness")
                     row["RAGAS Answer Relevancy"] = ragas_output.get("answer_relevancy")
