@@ -59,17 +59,9 @@ INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
 TESTSET_DIR = PROJECT_ROOT / "data" / "testset"
 
 TESTSET_OPTIONS = {
-    "Single JSON - gout_test_cases.json": {
-        "path": TESTSET_DIR / "gout_test_cases.json",
-        "scenario": "single",
-    },
     "Single JSONL - gout_test_cases.jsonl": {
         "path": TESTSET_DIR / "gout_test_cases.jsonl",
         "scenario": "single",
-    },
-    "Multi JSON - gout_multi_turn_test_cases.json": {
-        "path": TESTSET_DIR / "gout_multi_turn_test_cases.json",
-        "scenario": "multi",
     },
     "Multi JSONL - gout_multi_turn_test_cases.jsonl": {
         "path": TESTSET_DIR / "gout_multi_turn_test_cases.jsonl",
