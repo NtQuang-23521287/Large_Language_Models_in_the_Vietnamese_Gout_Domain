@@ -9,7 +9,7 @@ from openai import OpenAI
 
 @dataclass
 class JudgeConfig:
-    model_name: str = "gpt-4o-mini"
+    model_name: str = "gpt-5"
     temperature: float = 0.0
 
 
