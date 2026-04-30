@@ -86,7 +86,7 @@ def main() -> None:
     parser.add_argument(
         "--judge_model",
         type=str,
-        default="gpt-4o-mini",
+        default="gpt-5",
         help="Judge model name used when --judge or --pairwise is enabled.",
     )
 
