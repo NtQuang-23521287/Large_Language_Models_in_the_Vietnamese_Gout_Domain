@@ -47,12 +47,11 @@ GGUF_N_CTX = int(os.getenv("GGUF_N_CTX", "4096"))
 GGUF_N_GPU_LAYERS = int(os.getenv("GGUF_N_GPU_LAYERS", "0"))
 GGUF_N_THREADS = int(os.getenv("GGUF_N_THREADS", "4"))
 
-# THÊM CÁC MODEL GGUF VỚI TÊN ĐẸP VÀO ĐÂY
 BASE_MODEL_OPTIONS = {
     # Nhóm GGUF (Chạy bằng CPU)
     "PhoGPT 4B": str(PROJECT_ROOT / "configs" / "models" / "PhoGPT-4B-Chat-Q4_K_M.gguf"),
     "VinaLLaMA 7B": str(PROJECT_ROOT / "configs" / "models" / "vinallama-7b-chat_q5_0.gguf"),
-    "Vistral 7B": str(PROJECT_ROOT / "configs" / "models" / "ggml-vistral-7B-chat-q4_0.gguf"),
+    "Vistral 7B": str(PROJECT_ROOT / "configs" / "models" / "ggml-vistral-7B-chat-q5_0.gguf"),
 }
 
 INDEX_DIR = PROJECT_ROOT / "indexes" / "gout_kb_v1"
