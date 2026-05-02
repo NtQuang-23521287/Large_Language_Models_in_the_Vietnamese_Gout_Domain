@@ -13,8 +13,8 @@ Verdict = Literal["A", "B", "TIE"]
 class PairwiseJudgeConfig:
     """Configuration for reference-guided pairwise LLM-as-a-Judge."""
 
-    model_name: str = "gpt-4o-mini"
-    temperature: float = 0.0
+    model_name: str = "gpt-5"
+    temperature: float | None = None
     max_context_chars: int = 12000
 
 
@@ -167,11 +167,10 @@ Trong đó hallucination_risk:
         risk_level: str = "",
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
-        response = self.client.chat.completions.create(
-            model=self.config.model_name,
-            temperature=self.config.temperature,
-            response_format={"type": "json_object"},
-            messages=[
+        request_kwargs = {
+            "model": self.config.model_name,
+            "response_format": {"type": "json_object"},
+            "messages": [
                 {"role": "system", "content": self._build_system_prompt()},
                 {
                     "role": "user",
@@ -186,7 +185,12 @@ Trong đó hallucination_risk:
                     ),
                 },
             ],
-        )
+        }
+
+        if self.config.temperature is not None:
+            request_kwargs["temperature"] = self.config.temperature
+
+        response = self.client.chat.completions.create(**request_kwargs)
 
         raw = response.choices[0].message.content or "{}"
         try:

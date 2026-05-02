@@ -10,7 +10,7 @@ from openai import OpenAI
 @dataclass
 class JudgeConfig:
     model_name: str = "gpt-5"
-    temperature: float = 0.0
+    temperature: float | None = None
 
 
 class GPTJudge:
@@ -127,11 +127,10 @@ Scoring guidance:
         contexts: List[str],
         risk_level: str,
     ) -> Dict[str, Any]:
-        response = self.client.chat.completions.create(
-            model=self.config.model_name,
-            temperature=self.config.temperature,
-            response_format={"type": "json_object"},
-            messages=[
+        request_kwargs = {
+            "model": self.config.model_name,
+            "response_format": {"type": "json_object"},
+            "messages": [
                 {"role": "system", "content": self._build_system_prompt()},
                 {
                     "role": "user",
@@ -144,7 +143,12 @@ Scoring guidance:
                     ),
                 },
             ],
-        )
+        }
+
+        if self.config.temperature is not None:
+            request_kwargs["temperature"] = self.config.temperature
+
+        response = self.client.chat.completions.create(**request_kwargs)
 
         content = response.choices[0].message.content or "{}"
 
