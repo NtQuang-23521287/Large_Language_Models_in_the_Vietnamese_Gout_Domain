@@ -1,0 +1,16 @@
+{
+  "phogpt_single_norag": "./runs/PhoGPT/single_no_rag/artifacts/artifacts.jsonl",
+  "phogpt_single_rag": "./runs/PhoGPT/single_rag/artifacts/artifacts.jsonl",
+  "phogpt_multi_norag": "./runs/PhoGPT/multi_no_rag/artifacts/artifacts.jsonl",
+  "phogpt_multi_rag": "./runs/PhoGPT/multi_rag/artifacts/artifacts.jsonl",
+
+  "vinallama_single_norag": "./runs/VinaLLaMA/single_no_rag/artifacts/artifacts.jsonl",
+  "vinallama_single_rag": "./runs/VinaLLaMA/single_rag/artifacts/artifacts.jsonl",
+  "vinallama_multi_norag": "./runs/VinaLLaMA/multi_no_rag/artifacts/artifacts.jsonl",
+  "vinallama_multi_rag": "./runs/VinaLLaMA/multi_rag/artifacts/artifacts.jsonl",
+
+  "vistral_single_norag": "./runs/Vistral/single_no_rag/artifacts/artifacts.jsonl",
+  "vistral_single_rag": "./runs/Vistral/single_rag/artifacts/artifacts.jsonl",
+  "vistral_multi_norag": "./runs/Vistral/multi_no_rag/artifacts/artifacts.jsonl",
+  "vistral_multi_rag": "./runs/Vistral/multi_rag/artifacts/artifacts.jsonl"
+}
