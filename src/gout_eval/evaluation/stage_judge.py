@@ -43,7 +43,7 @@ def stage_judge(
     output_path: str | Path,
     *,
     api_key: str | None = None,
-    judge_model: str = "gpt-4o-mini",
+    judge_model: str = "gpt-5",
 ) -> None:
     data = load_jsonl(artifacts_path)
     judge = GPTJudge(
@@ -72,6 +72,11 @@ def stage_judge(
             result = {
                 "run_id": sample.get("run_id"),
                 "question_id": sample.get("question_id"),
+                "conversation_id": sample.get("conversation_id"),
+                "turn_id": sample.get("turn_id"),
+                "scenario": sample.get("scenario"),
+                "dataset_label": sample.get("dataset_label"),
+                "risk_level": sample.get("risk_level") or sample.get("cap_do") or sample.get("category") or "unknown",
                 "model_name": _extract_model_name(sample),
                 "judge_model": judge_model,
                 "judge_output": judge_output,
@@ -80,6 +85,11 @@ def stage_judge(
             result = {
                 "run_id": sample.get("run_id"),
                 "question_id": sample.get("question_id"),
+                "conversation_id": sample.get("conversation_id"),
+                "turn_id": sample.get("turn_id"),
+                "scenario": sample.get("scenario"),
+                "dataset_label": sample.get("dataset_label"),
+                "risk_level": sample.get("risk_level") or sample.get("cap_do") or sample.get("category") or "unknown",
                 "model_name": _extract_model_name(sample),
                 "judge_model": judge_model,
                 "error": str(exc),
@@ -108,7 +118,7 @@ def main() -> None:
     parser.add_argument(
         "--judge_model",
         type=str,
-        default="gpt-4o-mini",
+        default="gpt-5",
         help="OpenAI judge model name.",
     )
     parser.add_argument(
