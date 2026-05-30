@@ -1,0 +1,14 @@
+{
+  "phogpt_single_norag": "eval_outputs\\enriched_artifacts\\phogpt_single_norag_artifacts.enriched.jsonl",
+  "phogpt_single_rag": "eval_outputs\\enriched_artifacts\\phogpt_single_rag_artifacts.enriched.jsonl",
+  "phogpt_multi_norag": "eval_outputs\\enriched_artifacts\\phogpt_multi_norag_artifacts.enriched.jsonl",
+  "phogpt_multi_rag": "eval_outputs\\enriched_artifacts\\phogpt_multi_rag_artifacts.enriched.jsonl",
+  "vinallama_single_norag": "eval_outputs\\enriched_artifacts\\vinallama_single_norag_artifacts.enriched.jsonl",
+  "vinallama_single_rag": "eval_outputs\\enriched_artifacts\\vinallama_single_rag_artifacts.enriched.jsonl",
+  "vinallama_multi_norag": "eval_outputs\\enriched_artifacts\\vinallama_multi_norag_artifacts.enriched.jsonl",
+  "vinallama_multi_rag": "eval_outputs\\enriched_artifacts\\vinallama_multi_rag_artifacts.enriched.jsonl",
+  "vistral_single_norag": "eval_outputs\\enriched_artifacts\\vistral_single_norag_artifacts.enriched.jsonl",
+  "vistral_single_rag": "eval_outputs\\enriched_artifacts\\vistral_single_rag_artifacts.enriched.jsonl",
+  "vistral_multi_norag": "eval_outputs\\enriched_artifacts\\vistral_multi_norag_artifacts.enriched.jsonl",
+  "vistral_multi_rag": "eval_outputs\\enriched_artifacts\\vistral_multi_rag_artifacts.enriched.jsonl"
+}

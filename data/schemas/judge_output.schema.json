@@ -11,6 +11,12 @@
   "properties": {
     "run_id": { "type": ["string", "null"] },
     "question_id": { "type": ["string", "null"] },
+    "conversation_id": { "type": ["string", "null"] },
+    "turn_id": { "type": ["string", "integer", "null"] },
+    "scenario": { "type": ["string", "null"] },
+    "dataset_label": { "type": ["string", "null"] },
+    "question_type": { "type": ["string", "null"] },
+    "risk_level": { "type": ["string", "integer", "null"] },
     "model_name": { "type": ["string", "null"] },
     "judge_model": { "type": "string" },
     "judge_output": {
@@ -19,32 +25,64 @@
         "faithfulness": {
           "type": "object",
           "properties": {
-            "score": { "type": "number" },
-            "supported_facts": { "type": "integer" },
-            "total_facts": { "type": "integer" },
-            "reason": { "type": "string" }
-          }
-        },
-        "context_recall": {
-          "type": "object",
-          "properties": {
-            "score": { "type": "number" },
-            "covered_key_points": { "type": "integer" },
-            "total_key_points": { "type": "integer" },
+            "score": { "type": "integer", "minimum": 1, "maximum": 5 },
             "reason": { "type": "string" }
           }
         },
         "completeness": {
           "type": "object",
           "properties": {
-            "score": { "type": "integer" },
+            "score": { "type": "integer", "minimum": 1, "maximum": 5 },
             "reason": { "type": "string" }
           }
         },
-        "hallucination_severity": {
+        "relevance": {
           "type": "object",
           "properties": {
-            "level": { "type": "integer" },
+            "score": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "reason": { "type": "string" }
+          }
+        },
+        "context_recall": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "reason": { "type": "string" }
+          }
+        },
+        "patient_utility": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "reason": { "type": "string" }
+          }
+        },
+        "hallucination_level": {
+          "type": "object",
+          "properties": {
+            "level": { "type": "integer", "minimum": 0, "maximum": 3 },
+            "reason": { "type": "string" }
+          }
+        },
+        "omission_risk": {
+          "type": "object",
+          "properties": {
+            "level": { "type": "integer", "minimum": 0, "maximum": 3 },
+            "reason": { "type": "string" }
+          }
+        },
+        "safety_risk": {
+          "type": "object",
+          "properties": {
+            "level": { "type": "integer", "minimum": 0, "maximum": 3 },
+            "reason": { "type": "string" }
+          }
+        },
+        "refusal_appropriateness": {
+          "type": "object",
+          "properties": {
+            "is_applicable": { "type": "boolean" },
+            "score": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
             "reason": { "type": "string" }
           }
         },
@@ -52,14 +90,6 @@
           "type": "object",
           "properties": {
             "score": { "type": ["number", "null"] },
-            "reason": { "type": "string" }
-          }
-        },
-        "safety_refusal": {
-          "type": "object",
-          "properties": {
-            "is_applicable": { "type": "boolean" },
-            "correct_refusal": { "type": ["boolean", "null"] },
             "reason": { "type": "string" }
           }
         },

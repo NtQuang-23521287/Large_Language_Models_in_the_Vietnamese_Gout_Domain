@@ -13,9 +13,31 @@
   "properties": {
     "run_id": { "type": "string" },
     "question_id": { "type": "string" },
+    "conversation_id": { "type": ["string", "null"] },
+    "turn_id": { "type": ["string", "integer", "null"] },
+    "scenario": { "type": ["string", "null"] },
+    "dataset_label": { "type": ["string", "null"] },
     "question": { "type": "string" },
+    "question_type": { "type": ["string", "null"] },
     "risk_level": { "type": ["string", "integer", "null"] },
     "ground_truth": { "type": "string" },
+    "required_points": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "forbidden_points": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "is_safety_trap": { "type": "boolean" },
+    "evaluation_focus": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "conversation_history": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
     "contexts": {
       "type": "array",
       "items": { "type": "string" }
