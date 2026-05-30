@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = PROJECT_ROOT / "src"
 
 if str(PROJECT_ROOT) not in sys.path:
@@ -43,19 +43,19 @@ def main() -> None:
     parser.add_argument(
         "--manifest_path",
         type=str,
-        default="run_manifest.json",
-        help="Path to run_manifest.json",
+        default=str(PROJECT_ROOT / "eval_outputs" / "enriched_artifacts" / "run_manifest.enriched.json"),
+        help="Path to run_manifest.json. Defaults to the enriched manifest.",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="eval_outputs/judge",
+        default=str(PROJECT_ROOT / "eval_outputs" / "judge_new"),
         help="Directory to save per-run judge outputs",
     )
     parser.add_argument(
         "--summary_dir",
         type=str,
-        default="eval_outputs/summary",
+        default=str(PROJECT_ROOT / "eval_outputs" / "summary_new"),
         help="Directory to save per-run summary outputs",
     )
     parser.add_argument(
@@ -101,6 +101,8 @@ def main() -> None:
 
     for run_key, artifact_path_str in manifest.items():
         artifact_path = Path(artifact_path_str)
+        if not artifact_path.is_absolute():
+            artifact_path = PROJECT_ROOT / artifact_path
         if not artifact_path.exists():
             print(f"[SKIP] Missing artifacts for {run_key}: {artifact_path}")
             continue

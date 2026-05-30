@@ -8,10 +8,11 @@ from pathlib import Path
 # Setup path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = PROJECT_ROOT / "src"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from src.gout_eval.adapters.hf_adapter import HFAdapter
 from src.gout_eval.pipeline.stage_generate import generate_answers
 
 
@@ -206,6 +207,8 @@ def main() -> None:
     # =========================
     # Stage 1: Generate answers
     # =========================
+    from src.gout_eval.adapters.hf_adapter import HFAdapter
+
     adapter = HFAdapter(model_name=args.model_name)
 
     generate_answers(
@@ -298,7 +301,7 @@ def main() -> None:
             )
 
         stage_pairwise_judge(
-            model_artifacts=model_artifacts,
+            model_artifact_paths=model_artifacts,
             output_path=pairwise_output_path,
             summary_path=pairwise_summary_path,
             judge_model=args.judge_model,

@@ -23,7 +23,11 @@ from gout_eval.evaluation.aggregate_results import aggregate_results, save_summa
 from gout_eval.evaluation.judge import GPTJudge, JudgeConfig
 from gout_eval.generation.prompt_builder import build_prompt
 from gout_eval.generation.retriever import FaissRetriever
-from gout_eval.pipeline.stage_generate import load_testset
+from gout_eval.pipeline.stage_generate import (
+    load_testset,
+    normalize_question_type,
+    normalize_risk_level,
+)
 from gout_eval.storage.artifacts import append_jsonl
 
 logger = logging.getLogger(__name__)
@@ -296,12 +300,22 @@ def get_judge(model_name: str) -> GPTJudge:
     return _JUDGE_CACHE[model_name]
 
 
-def normalize_test_row(sample: Dict[str, Any], idx: int) -> Dict[str, str]:
+def normalize_test_row(sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    question_type = normalize_question_type(
+        sample.get("question_type")
+        or sample.get("category")
+        or sample.get("cap_do")
+        or sample.get("original_cap_do")
+    )
     return {
         "question_id": str(sample.get("question_id", f"Q_{idx + 1:03d}")),
-        "risk_level": str(sample.get("risk_level", sample.get("cap_do", ""))),
+        "question_type": question_type,
+        "risk_level": normalize_risk_level(sample.get("risk_level"), question_type),
         "question": str(sample.get("question", sample.get("cau_hoi", ""))),
         "ground_truth": str(sample.get("ground_truth", "")),
+        "required_points": sample.get("required_points", []),
+        "forbidden_points": sample.get("forbidden_points", []),
+        "is_safety_trap": bool(sample.get("is_safety_trap") or question_type == "Safety Trap"),
     }
 
 
@@ -362,6 +376,10 @@ def build_artifact_record(
     question: str,
     risk_level: str,
     ground_truth: str,
+    question_type: str,
+    required_points: List[str],
+    forbidden_points: List[str],
+    is_safety_trap: bool,
     contexts: List[str],
     prompt: str,
     answer: str,
@@ -374,8 +392,13 @@ def build_artifact_record(
         "run_id": run_id,
         "question_id": question_id,
         "question": question,
+        "question_type": question_type,
         "risk_level": risk_level,
         "ground_truth": ground_truth,
+        "required_points": required_points,
+        "forbidden_points": forbidden_points,
+        "is_safety_trap": is_safety_trap,
+        "conversation_history": [],
         "contexts": contexts,
         "retrieved_chunks": [],
         "prompt": prompt,
@@ -398,6 +421,8 @@ def build_judge_record(
     return {
         "run_id": artifact["run_id"],
         "question_id": artifact["question_id"],
+        "question_type": artifact.get("question_type"),
+        "risk_level": artifact.get("risk_level"),
         "model_name": artifact["meta"].get("model_name"),
         "judge_model": judge_model,
         "judge_output": judge_output,
@@ -446,6 +471,7 @@ def run_batch_eval(
         question_id = sample["question_id"]
         question = sample["question"]
         ground_truth = sample["ground_truth"]
+        question_type = sample["question_type"]
         risk_level = sample["risk_level"]
 
         try:
@@ -469,6 +495,10 @@ def run_batch_eval(
             question=question,
             risk_level=risk_level,
             ground_truth=ground_truth,
+            question_type=question_type,
+            required_points=sample["required_points"],
+            forbidden_points=sample["forbidden_points"],
+            is_safety_trap=sample["is_safety_trap"],
             contexts=output["contexts"],
             prompt=output["prompt"],
             answer=output["answer"],
@@ -488,6 +518,11 @@ def run_batch_eval(
                 answer=output["answer"],
                 contexts=output["contexts"],
                 risk_level=risk_level,
+                question_type=question_type,
+                required_points=sample["required_points"],
+                forbidden_points=sample["forbidden_points"],
+                is_safety_trap=sample["is_safety_trap"],
+                conversation_history=[],
             )
             judge_record = build_judge_record(artifact, judge_output, judge_model)
             judge_records.append(judge_record)
@@ -497,6 +532,7 @@ def run_batch_eval(
             {
                 "question_id": question_id,
                 "risk_level": risk_level,
+                "question_type": question_type,
                 "question": question,
                 "answer": output["answer"],
                 "judge_output": judge_output,

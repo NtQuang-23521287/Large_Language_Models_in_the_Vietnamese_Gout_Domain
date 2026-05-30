@@ -78,14 +78,14 @@ def main() -> None:
     parser.add_argument(
         "--manifest_path",
         type=str,
-        default="runs/run_manifest.json",
-        help="Path to run_manifest.json",
+        default=str(PROJECT_ROOT / "eval_outputs" / "enriched_artifacts" / "run_manifest.enriched.json"),
+        help="Path to run_manifest.json. Defaults to the enriched manifest.",
     )
 
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="eval_outputs/ragas",
+        default=str(PROJECT_ROOT / "eval_outputs" / "ragas_new"),
         help="Directory to save per-run RAGAS outputs",
     )
 
@@ -143,6 +143,8 @@ def main() -> None:
 
     for run_key, artifact_path_str in manifest.items():
         artifact_path = Path(artifact_path_str)
+        if not artifact_path.is_absolute():
+            artifact_path = PROJECT_ROOT / artifact_path
 
         if not artifact_path.exists():
             print(f"[SKIP] Missing artifacts: {run_key} -> {artifact_path}")
@@ -185,6 +187,12 @@ def main() -> None:
                     or artifact.get("category")
                     or "unknown"
                 )
+                ragas_record["question_type"] = (
+                    artifact.get("question_type")
+                    or artifact.get("category")
+                    or artifact.get("cap_do")
+                    or "unknown"
+                )
                 ragas_record["run_key"] = run_key
 
         except Exception as exc:
@@ -203,6 +211,12 @@ def main() -> None:
                             artifact.get("risk_level")
                             or artifact.get("cap_do")
                             or artifact.get("category")
+                            or "unknown"
+                        ),
+                        "question_type": (
+                            artifact.get("question_type")
+                            or artifact.get("category")
+                            or artifact.get("cap_do")
                             or "unknown"
                         ),
                         "run_key": run_key,
