@@ -58,6 +58,7 @@ class BatchEvalRequest(BaseModel):
 
 class BatchEvalRow(BaseModel):
     question_id: str
+    question_type: str = "unknown"
     risk_level: str
     question: str
     answer: str

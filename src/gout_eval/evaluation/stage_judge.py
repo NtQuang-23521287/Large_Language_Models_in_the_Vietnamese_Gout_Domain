@@ -3,10 +3,22 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
-from tqdm import tqdm
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+try:
+    from tqdm import tqdm
+except Exception:  # pragma: no cover
+    def tqdm(iterable, **_: Any):  # type: ignore
+        return iterable
 
 from src.gout_eval.evaluation.judge import GPTJudge, JudgeConfig
 
@@ -60,6 +72,11 @@ def stage_judge(
             answer = sample.get("answer", "")
             contexts = sample.get("contexts", [])
             risk_level = str(sample.get("risk_level", "unknown"))
+            question_type = str(sample.get("question_type") or sample.get("category") or "unknown")
+            required_points = sample.get("required_points") or []
+            forbidden_points = sample.get("forbidden_points") or []
+            is_safety_trap = bool(sample.get("is_safety_trap") or question_type == "Safety Trap")
+            conversation_history = sample.get("conversation_history") or []
 
             judge_output = judge.judge(
                 question=question,
@@ -67,6 +84,11 @@ def stage_judge(
                 answer=answer,
                 contexts=contexts,
                 risk_level=risk_level,
+                question_type=question_type,
+                required_points=required_points,
+                forbidden_points=forbidden_points,
+                is_safety_trap=is_safety_trap,
+                conversation_history=conversation_history,
             )
 
             result = {
@@ -76,6 +98,7 @@ def stage_judge(
                 "turn_id": sample.get("turn_id"),
                 "scenario": sample.get("scenario"),
                 "dataset_label": sample.get("dataset_label"),
+                "question_type": question_type,
                 "risk_level": sample.get("risk_level") or sample.get("cap_do") or sample.get("category") or "unknown",
                 "model_name": _extract_model_name(sample),
                 "judge_model": judge_model,
@@ -89,6 +112,7 @@ def stage_judge(
                 "turn_id": sample.get("turn_id"),
                 "scenario": sample.get("scenario"),
                 "dataset_label": sample.get("dataset_label"),
+                "question_type": sample.get("question_type") or sample.get("category") or "unknown",
                 "risk_level": sample.get("risk_level") or sample.get("cap_do") or sample.get("category") or "unknown",
                 "model_name": _extract_model_name(sample),
                 "judge_model": judge_model,

@@ -87,6 +87,12 @@ def evaluate_artifacts(
             {
                 "run_id": artifact.get("run_id"),
                 "question_id": artifact.get("question_id"),
+                "conversation_id": artifact.get("conversation_id"),
+                "turn_id": artifact.get("turn_id"),
+                "scenario": artifact.get("scenario"),
+                "dataset_label": artifact.get("dataset_label"),
+                "question_type": artifact.get("question_type"),
+                "risk_level": artifact.get("risk_level"),
                 "model_name": (artifact.get("meta") or {}).get("model_name"),
                 "ragas_output": {
                     "faithfulness": ragas_row.get("faithfulness"),
