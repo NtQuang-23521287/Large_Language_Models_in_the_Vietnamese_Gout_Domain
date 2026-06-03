@@ -87,7 +87,7 @@ def main() -> None:
     if not args.api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is missing. Set it first, e.g. "
-            "PowerShell: $env:OPENAI_API_KEY='sk-...'"
+            "PowerShell: $env:OPENAI_API_KEY='your_api_key_here'"
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -122,7 +122,7 @@ def main() -> None:
     if not args.api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is missing. Set it first. "
-            "PowerShell: $env:OPENAI_API_KEY='sk-...'"
+            "PowerShell: $env:OPENAI_API_KEY='your_api_key_here'"
         )
 
     manifest = load_manifest(args.manifest_path)
