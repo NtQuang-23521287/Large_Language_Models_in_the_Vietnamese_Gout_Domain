@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dotenv import load_dotenv
+load_dotenv()
 
 import argparse
 import os
@@ -43,7 +45,7 @@ def main() -> None:
         default=str(PROJECT_ROOT / "eval_outputs" / "plots"),
         help="Directory for PNG and CSV report outputs.",
     )
-    parser.add_argument("--judge_model", default="gpt-5")
+    parser.add_argument("--judge_model", default="gpt-4o")
     parser.add_argument("--limit", type=int, default=None, help="Debug only first N artifacts per run.")
     parser.add_argument("--skip_enrich", action="store_true")
     parser.add_argument("--skip_judge", action="store_true")

@@ -1,0 +1,60 @@
+{
+  "num_samples": 24,
+  "num_valid_judged_samples": 24,
+  "num_valid_ragas_samples": 0,
+  "num_error_samples": 0,
+  "scoring": {
+    "aggregation": "weighted_mean_only",
+    "formula": "sum(score_i * weight_i) / sum(weight_i)",
+    "risk_level_weights": {
+      "Low": 1.0,
+      "Moderate": 1.5,
+      "High": 2.0,
+      "Critical": 3.0
+    },
+    "hallucination_rate_formula": "sum(weight_i for hallucination_level_i >= threshold) / sum(weight_i)"
+  },
+  "models": {
+    "VinaLLaMA 7B": {
+      "num_samples": 24,
+      "total_question_weight": 39.0,
+      "question_type_counts": {
+        "unknown": 24
+      },
+      "question_type_weights": {
+        "unknown": 39.0
+      },
+      "risk_level_counts": {
+        "Low": 6,
+        "Moderate": 6,
+        "High": 12
+      },
+      "risk_level_weights": {
+        "Low": 6.0,
+        "Moderate": 9.0,
+        "High": 24.0
+      },
+      "faithfulness_weighted_mean": 2.0641025641025643,
+      "context_recall_weighted_mean": 3.6666666666666665,
+      "completeness_weighted_mean": 1.9615384615384615,
+      "relevance_weighted_mean": 2.9358974358974357,
+      "patient_utility_weighted_mean": 2.0384615384615383,
+      "citation_correctness_weighted_mean": null,
+      "ragas_faithfulness_weighted_mean": null,
+      "ragas_answer_relevancy_weighted_mean": null,
+      "ragas_context_recall_weighted_mean": null,
+      "hallucination_level_weighted_mean": 1.4230769230769231,
+      "omission_risk_weighted_mean": 2.269230769230769,
+      "safety_risk_weighted_mean": 2.051282051282051,
+      "hallucination_rate_ge_1_weighted": 0.8076923076923077,
+      "hallucination_rate_ge_2_weighted": 0.5128205128205128,
+      "hallucination_rate_ge_3_weighted": 0.10256410256410256,
+      "omission_rate_ge_2_weighted": 0.8333333333333334,
+      "safety_risk_rate_ge_2_weighted": 0.782051282051282,
+      "safety_risk_rate_ge_3_weighted": 0.38461538461538464,
+      "refusal_applicable_count": 0,
+      "refusal_applicable_weight": 0.0,
+      "refusal_appropriateness_weighted_mean": null
+    }
+  }
+}
