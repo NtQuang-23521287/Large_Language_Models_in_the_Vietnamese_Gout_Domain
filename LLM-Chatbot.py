@@ -87,7 +87,7 @@ def normalize_gguf_path(model_name: str) -> str:
 
 def scan_gguf_models(model_dir: Path) -> Dict[str, str]:
     """
-    Quet toan bo thu muc configs/models de tim file .gguf.
+    Quét toàn bộ thư mục configs/models để tìm file .gguf.
     """
     gguf_models: Dict[str, str] = {}
 
@@ -237,7 +237,7 @@ def load_eval_testsets(selected_dataset_labels: List[str]) -> List[Dict[str, Any
         scenario = cfg["scenario"]
 
         if not path.exists():
-            st.warning(f"Khong tim thay file testset: `{path}`")
+            st.warning(f"Không tìm thấy tệp testset: `{path}`")
             continue
 
         raw_items = load_testset(path)
@@ -435,30 +435,120 @@ def resolve_selected_models(selected_labels: List[str], model_options: Dict[str,
 
     return resolved_labels, resolved_models
 
-st.set_page_config(page_title="Gout-LLM Chat & Eval", page_icon="🩺", layout="wide")
+
+UI_COLUMN_LABELS = {
+    "scenario": "Kịch bản",
+    "dataset_label": "Bộ dữ liệu",
+    "conversation_id": "Mã hội thoại",
+    "turn_id": "Mã lượt hỏi",
+    "question_id": "Mã câu hỏi",
+    "risk_level": "Mức rủi ro",
+    "question": "Câu hỏi",
+    "ground_truth": "Đáp án tham chiếu",
+    "Scenario": "Kịch bản",
+    "Dataset": "Bộ dữ liệu",
+    "Conversation ID": "Mã hội thoại",
+    "Turn ID": "Mã lượt hỏi",
+    "Question ID": "Mã câu hỏi",
+    "Risk level": "Mức rủi ro",
+    "Model": "Mô hình",
+    "Model Name": "Tên mô hình",
+    "Question": "Câu hỏi",
+    "Generation Question": "Câu hỏi đầu vào khi sinh",
+    "Answer": "Câu trả lời",
+    "Context Recall": "Context Recall",
+    "Hallucination": "Hallucination Level",
+    "Judge comment": "Nhận xét của Judge",
+    "model_name": "Mô hình",
+    "faithfulness_mean": "Faithfulness trung bình",
+    "context_recall_mean": "Context Recall trung bình",
+    "completeness_mean": "Completeness trung bình",
+    "citation_correctness_mean": "Citation Correctness trung bình",
+    "ragas_faithfulness_mean": "RAGAS Faithfulness trung bình",
+    "ragas_answer_relevancy_mean": "RAGAS Answer Relevancy trung bình",
+    "ragas_context_recall_mean": "RAGAS Context Recall trung bình",
+    "hallucination_level_mean": "Hallucination Level trung bình",
+    "safety_refusal_rate": "Tỷ lệ từ chối an toàn",
+    "hallucination_rate_ge_1": "Tỷ lệ hallucination ≥ 1",
+    "hallucination_rate_ge_2": "Tỷ lệ hallucination ≥ 2",
+    "hallucination_rate_ge_3": "Tỷ lệ hallucination ≥ 3",
+}
+
+
+def localize_dataframe_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Đổi tên các cột hiển thị sang tiếng Việt mà không làm ảnh hưởng dữ liệu nội bộ."""
+    return df.rename(columns={col: UI_COLUMN_LABELS.get(col, col) for col in df.columns})
+
+st.set_page_config(
+    page_title="Gout-LLM",
+    page_icon="🩺",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+st.markdown(
+    """
+    <style>
+        .block-container {
+            padding-top: 3rem;
+            padding-bottom: 1rem;
+            max-width: 1280px;
+        }
+        h1, h2, h3 {
+            line-height: 1.25 !important;
+        }
+        h2, h3 {
+            margin-top: 0.4rem !important;
+            margin-bottom: 0.4rem !important;
+        }
+        div[data-testid="stVerticalBlock"] {gap: 0.45rem;}
+        div[data-testid="stExpander"] details {border-radius: 8px;}
+        .small-note {font-size: 0.9rem; color: #667085;}
+        .app-title {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1.35;
+            margin: 0 0 0.15rem 0;
+            padding-top: 0.2rem;
+            color: #101828;
+        }
+        .app-subtitle {
+            font-size: 0.95rem;
+            color: #667085;
+            margin-bottom: 0.75rem;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 MODEL_OPTIONS = get_model_options()
 GGUF_DISCOVERED = [label for label in MODEL_OPTIONS if "(GGUF)" in label or label.startswith("GGUF | ")]
 
-st.title("Gout-LLM: UI noi backend that")
-st.markdown("So sanh da mo hinh, luu run va ve bieu do metric ngay tren giao dien.")
-st.divider()
+st.markdown(
+    """
+    <div class="app-title">Gout-LLM</div>
+    <div class="app-subtitle">Giao diện hỏi đáp và đánh giá tự động mô hình trong miền bệnh Gút tiếng Việt</div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # TẠO 2 TAB GIAO DIỆN
-tab1, tab2 = st.tabs(["Chat trực tiếp", "Đánh giá Hàng loạt (Batch Eval)"])
+tab1, tab2 = st.tabs(["Chat", "Batch Eval"])
 
 # ==========================================
 # TAB 1: CHAT TRỰC TIẾP
 # ==========================================
 with tab1:
-    col_settings, col_chat = st.columns([1, 3], gap="large")
+    col_settings, col_chat = st.columns([0.85, 2.15], gap="medium")
 
     with col_settings:
-        st.subheader("Cau hinh")
+        st.markdown("#### Cấu hình")
         selected_chat_labels = st.multiselect(
-            "Models",
+            "Mô hình",
             list(MODEL_OPTIONS.keys()),
             default=["PhoGPT 4B"],
+            help="Có thể chọn nhiều mô hình để so sánh song song.",
         )
 
         selected_chat_labels_effective, selected_chat_models = resolve_selected_models(
@@ -466,17 +556,23 @@ with tab1:
             MODEL_OPTIONS,
         )
 
-        use_rag_chat = st.checkbox("Bat RAG", value=True)
-        top_k_chat = st.slider("Top-k", min_value=1, max_value=5, value=2)
-        max_tokens_chat = st.slider("Max tokens", min_value=32, max_value=256, value=128, step=32)
-        temperature_chat = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
-        st.caption(f"Index: `{INDEX_DIR}`")
-        st.caption(f"Model dir: `{MODEL_DIR}`")
-        st.caption(f"GGUF tim thay: {len(GGUF_DISCOVERED)}")
+        cfg_col1, cfg_col2 = st.columns(2)
+        with cfg_col1:
+            use_rag_chat = st.checkbox("RAG", value=True)
+            max_tokens_chat = st.slider("Token", min_value=32, max_value=256, value=128, step=32)
+        with cfg_col2:
+            top_k_chat = st.slider("Top-k", min_value=1, max_value=5, value=2)
+            temperature_chat = st.slider("Temp.", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
+
+        with st.expander("Thông tin hệ thống", expanded=False):
+            st.caption(f"Chỉ mục RAG: `{INDEX_DIR}`")
+            st.caption(f"Thư mục mô hình: `{MODEL_DIR}`")
+            st.caption(f"GGUF tìm thấy: {len(GGUF_DISCOVERED)}")
 
     with col_chat:
         if "messages" not in st.session_state:
             st.session_state.messages = []
+
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 if msg["role"] == "user":
@@ -495,28 +591,25 @@ with tab1:
                                 else:
                                     st.write(output.get("answer", ""))
                         if msg.get("contexts"):
-                            with st.expander("Retrieved contexts"):
+                            with st.expander("Ngữ cảnh truy xuất", expanded=False):
                                 for idx, ctx in enumerate(msg["contexts"], start=1):
-                                    st.markdown(f"**Context {idx}**")
+                                    st.markdown(f"**Đoạn {idx}**")
                                     st.write(ctx)
-        if prompt := st.chat_input("Nhap cau hoi ve benh Gut..."):
+
+        if prompt := st.chat_input("Nhập câu hỏi về bệnh Gút..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
 
             if not selected_chat_models:
+                error_msg = "Chưa có mô hình hợp lệ. Vui lòng thêm mô hình vào `configs/models` hoặc chọn mô hình khác."
                 with st.chat_message("assistant"):
-                    st.error("Khong co model hop le de chay. Hay them model vao `configs/models` hoac chon model khac.")
+                    st.error(error_msg)
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
-                        "content": "Khong co model hop le de chay.",
-                        "outputs": [
-                            {
-                                "label": "System",
-                                "error": "Khong co model hop le de chay. Hay them model vao `configs/models` hoac chon model khac.",
-                            }
-                        ],
+                        "content": "Chưa có mô hình hợp lệ.",
+                        "outputs": [{"label": "Hệ thống", "error": error_msg}],
                         "contexts": [],
                     }
                 )
@@ -529,7 +622,7 @@ with tab1:
                     for col, label, model_name in zip(cols, selected_chat_labels_effective, selected_chat_models):
                         with col:
                             st.caption(f"**{label}**")
-                            with st.spinner("Dang sinh cau tra loi..."):
+                            with st.spinner("Đang sinh câu trả lời..."):
                                 try:
                                     output = generate_answer(
                                         model_name=model_name,
@@ -555,10 +648,11 @@ with tab1:
                                             "error": str(exc),
                                         }
                                     )
+
                     if contexts:
-                        with st.expander("Retrieved contexts"):
+                        with st.expander("Ngữ cảnh truy xuất", expanded=False):
                             for idx, ctx in enumerate(contexts, start=1):
-                                st.markdown(f"**Context {idx}**")
+                                st.markdown(f"**Đoạn {idx}**")
                                 st.write(ctx)
 
                 st.session_state.messages.append(
@@ -569,106 +663,114 @@ with tab1:
                         "contexts": contexts,
                     }
                 )
+
+# ==========================================
+# TAB 2: ĐÁNH GIÁ HÀNG LOẠT
+# ==========================================
 with tab2:
-    st.subheader("Danh gia hang loat")
+    st.markdown("#### Đánh giá hàng loạt")
 
-    selected_batch_labels = st.multiselect(
-        "Models de danh gia",
-        list(MODEL_OPTIONS.keys()),
-        default=[l for l in MODEL_OPTIONS.keys() if "(GGUF)" in l],
-        key="batch_models",
-    )
+    with st.expander("1. Cấu hình chạy", expanded=True):
+        row1_col1, row1_col2 = st.columns([2.2, 1])
+        with row1_col1:
+            selected_batch_labels = st.multiselect(
+                "Mô hình cần đánh giá",
+                list(MODEL_OPTIONS.keys()),
+                default=[l for l in MODEL_OPTIONS.keys() if "(GGUF)" in l],
+                key="batch_models",
+            )
+        with row1_col2:
+            judge_enabled = st.checkbox("LLM-as-a-Judge", value=False)
+            ragas_enabled = st.checkbox("RAGAS", value=False)
 
-    selected_batch_labels_effective, selected_batch_models = resolve_selected_models(
-        selected_batch_labels,
-        MODEL_OPTIONS,
-    )
+        selected_batch_labels_effective, selected_batch_models = resolve_selected_models(
+            selected_batch_labels,
+            MODEL_OPTIONS,
+        )
 
-    use_rag_batch = st.checkbox("Bat RAG cho batch", value=True, key="batch_rag")
-    top_k_batch = st.slider("Top-k batch", min_value=1, max_value=5, value=2, key="batch_top_k")
-    max_tokens_batch = st.slider("Max tokens batch", min_value=32, max_value=256, value=128, step=32, key="batch_max_tokens")
-    temperature_batch = st.slider("Temperature batch", min_value=0.0, max_value=1.0, value=0.2, step=0.1, key="batch_temperature")
-    judge_enabled = st.checkbox("Bat LLM-as-a-Judge", value=False)
-    judge_model = st.text_input("Judge model", value="gpt-5")
-    ragas_enabled = st.checkbox("Bat RAGAS", value=False)
-    ragas_llm_model = st.text_input("RAGAS LLM model", value="gpt-4o-mini")
-    ragas_embedding_model = st.text_input("RAGAS embedding model", value="text-embedding-3-small")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            use_rag_batch = st.checkbox("Bật RAG", value=True, key="batch_rag")
+            top_k_batch = st.slider("Top-k", min_value=1, max_value=5, value=2, key="batch_top_k")
+        with c2:
+            max_tokens_batch = st.slider("Token", min_value=32, max_value=256, value=128, step=32, key="batch_max_tokens")
+            temperature_batch = st.slider("Temp.", min_value=0.0, max_value=1.0, value=0.2, step=0.1, key="batch_temperature")
+        with c3:
+            judge_model = st.text_input("Judge model", value="gpt-5")
+        with c4:
+            ragas_llm_model = st.text_input("RAGAS LLM", value="gpt-4o-mini")
+            ragas_embedding_model = st.text_input("Embedding", value="text-embedding-3-small")
 
-    st.markdown("### Chon kich ban testset")
+    with st.expander("2. Testset", expanded=True):
+        scenario_mode = st.radio(
+            "Chế độ chạy",
+            [
+                "Chỉ chạy single-turn",
+                "Chỉ chạy multi-turn",
+                "Chạy cả single-turn và multi-turn",
+                "Tùy chọn tệp testset",
+            ],
+            index=0,
+            horizontal=True,
+        )
 
-    scenario_mode = st.radio(
-        "Che do chay",
-        [
-            "Chi chay single-turn",
-            "Chi chay multi-turn",
-            "Chay ca single-turn va multi-turn",
-            "Tuy chon file testset",
-        ],
-        index=0,
-        horizontal=True,
-    )
+        if scenario_mode == "Chỉ chạy single-turn":
+            default_dataset_labels = ["Single JSONL - gout_test_cases.jsonl"]
+        elif scenario_mode == "Chỉ chạy multi-turn":
+            default_dataset_labels = ["Multi JSONL - gout_multi_turn_test_cases.jsonl"]
+        elif scenario_mode == "Chạy cả single-turn và multi-turn":
+            default_dataset_labels = [
+                "Single JSONL - gout_test_cases.jsonl",
+                "Multi JSONL - gout_multi_turn_test_cases.jsonl",
+            ]
+        else:
+            default_dataset_labels = ["Single JSONL - gout_test_cases.jsonl"]
 
-    if scenario_mode == "Chi chay single-turn":
-        default_dataset_labels = [
-            "Single JSONL - gout_test_cases.jsonl",
+        tcol1, tcol2 = st.columns([2, 1])
+        with tcol1:
+            selected_dataset_labels = st.multiselect(
+                "Tệp testset",
+                list(TESTSET_OPTIONS.keys()),
+                default=default_dataset_labels,
+                key="selected_testset_files",
+            )
+
+        testset_data = load_eval_testsets(selected_dataset_labels)
+
+        if not testset_data:
+            st.error("Chưa nạp được testset nào. Vui lòng kiểm tra tệp trong `data/testset/`.")
+            st.stop()
+
+        with tcol2:
+            num_run = st.slider(
+                "Số lượt hỏi",
+                min_value=1,
+                max_value=len(testset_data),
+                value=min(5, len(testset_data)),
+            )
+            st.caption(f"Đã nạp {len(testset_data)} lượt hỏi từ {len(selected_dataset_labels)} tệp.")
+
+        testset_overview_df = pd.DataFrame(testset_data)
+        overview_cols = [
+            "scenario",
+            "dataset_label",
+            "conversation_id",
+            "turn_id",
+            "question_id",
+            "risk_level",
+            "question",
+            "ground_truth",
         ]
-    elif scenario_mode == "Chi chay multi-turn":
-        default_dataset_labels = [
-            "Multi JSONL - gout_multi_turn_test_cases.jsonl",
-        ]
-    elif scenario_mode == "Chay ca single-turn va multi-turn":
-        default_dataset_labels = [
-            "Single JSONL - gout_test_cases.jsonl",
-            "Multi JSONL - gout_multi_turn_test_cases.jsonl",
-        ]
-    else:
-        default_dataset_labels = [
-            "Single JSONL - gout_test_cases.jsonl",
-        ]
+        overview_cols = [col for col in overview_cols if col in testset_overview_df.columns]
 
-    selected_dataset_labels = st.multiselect(
-        "Testset files",
-        list(TESTSET_OPTIONS.keys()),
-        default=default_dataset_labels,
-        key="selected_testset_files",
-    )
+        with st.expander("Xem trước testset", expanded=False):
+            st.dataframe(localize_dataframe_columns(testset_overview_df[overview_cols]), use_container_width=True)
 
-    testset_data = load_eval_testsets(selected_dataset_labels)
+    run_clicked = st.button("Bắt đầu đánh giá", type="primary", use_container_width=True)
 
-    if not testset_data:
-        st.error("Chua nap duoc testset nao. Hay kiem tra file trong `data/testset/`.")
-        st.stop()
-
-    st.success(
-        f"Da nap {len(testset_data)} luot hoi tu {len(selected_dataset_labels)} file testset."
-    )
-
-    testset_overview_df = pd.DataFrame(testset_data)
-    overview_cols = [
-        "scenario",
-        "dataset_label",
-        "conversation_id",
-        "turn_id",
-        "question_id",
-        "risk_level",
-        "question",
-        "ground_truth",
-    ]
-    overview_cols = [col for col in overview_cols if col in testset_overview_df.columns]
-
-    with st.expander("Preview testset da nap"):
-        st.dataframe(testset_overview_df[overview_cols], use_container_width=True)
-
-    num_run = st.slider(
-        "So luot hoi muon chay",
-        min_value=1,
-        max_value=len(testset_data),
-        value=min(5, len(testset_data)),
-    )
-
-    if st.button("Bat dau chay batch", type="primary"):
+    if run_clicked:
         if not selected_batch_models:
-            st.error("Khong co model hop le de chay batch. Hay them model vao `configs/models` hoac chon model khac.")
+            st.error("Chưa có mô hình hợp lệ để chạy đánh giá. Vui lòng thêm mô hình vào `configs/models` hoặc chọn mô hình khác.")
         else:
             run_id = make_run_id()
             run_dir = RUNS_DIR / run_id
@@ -686,7 +788,7 @@ with tab2:
             total_steps = max(1, len(selected_batch_models) * num_run)
             current_step = 0
 
-                        # Luu lich su hoi thoai rieng cho tung model trong multi-turn.
+            # Lưu lịch sử hội thoại riêng cho từng mô hình trong multi-turn.
             # Key = (dataset_label, conversation_id, model_display_name)
             conversation_histories: Dict[Tuple[str, str, str], List[Dict[str, str]]] = {}
 
@@ -711,7 +813,7 @@ with tab2:
                     model_display_name = get_model_display_name(label, model_name)
 
                     status_text.text(
-                        f"Dang generate {model_display_name} - {question_id} "
+                        f"Đang sinh câu trả lời: {model_display_name} - {question_id} "
                         f"({current_step}/{total_steps})..."
                     )
 
@@ -762,7 +864,7 @@ with tab2:
                         )
                         append_jsonl(artifacts_path, artifact)
 
-                        # Cap nhat history sau khi model tra loi.
+                        # Cập nhật lịch sử hội thoại sau khi mô hình trả lời.
                         if scenario == "multi":
                             model_history.append(
                                 {
@@ -774,7 +876,7 @@ with tab2:
 
                         judge_output = None
                         if judge_enabled:
-                            status_text.text(f"Dang judge {model_display_name} - {question_id}...")
+                            status_text.text(f"Đang chấm điểm: {model_display_name} - {question_id}...")
 
                             # Judge cũng nên thấy history trong question để chấm đúng bối cảnh.
                             judge_question = generation_question
@@ -828,7 +930,7 @@ with tab2:
                                 "Model Name": model_name,
                                 "Question": raw_question,
                                 "Generation Question": generation_question,
-                                "Answer": f"ERROR: {exc}",
+                                "Answer": f"LỖI: {exc}",
                                 "Faithfulness": None,
                                 "Context Recall": None,
                                 "Completeness": None,
@@ -843,7 +945,7 @@ with tab2:
                     progress_bar.progress(current_step / total_steps)
 
             if ragas_enabled:
-                status_text.text("Dang chay RAGAS tren artifacts...")
+                status_text.text("Đang chạy RAGAS trên các artifact...")
                 stage_ragas(
                     artifacts_path=artifacts_path,
                     output_path=ragas_path,
@@ -867,26 +969,27 @@ with tab2:
                     row["RAGAS Answer Relevancy"] = ragas_output.get("answer_relevancy")
                     row["RAGAS Context Recall"] = ragas_output.get("context_recall")
 
-            status_text.success("Hoan tat batch eval.")
-            st.caption(f"Artifacts: `{artifacts_path}`")
-            if judge_enabled:
-                st.caption(f"Judge results: `{judge_path}`")
-            if ragas_enabled:
-                st.caption(f"RAGAS results: `{ragas_path}`")
+            status_text.success("Hoàn tất đánh giá hàng loạt.")
+            with st.expander("Đường dẫn kết quả", expanded=False):
+                st.caption(f"Artifact: `{artifacts_path}`")
+                if judge_enabled:
+                    st.caption(f"Judge: `{judge_path}`")
+                if ragas_enabled:
+                    st.caption(f"RAGAS: `{ragas_path}`")
 
             result_df = pd.DataFrame(display_rows)
-            st.subheader("Bang ket qua chi tiet")
-            st.dataframe(result_df, use_container_width=True)
+            with st.expander("Bảng kết quả chi tiết", expanded=True):
+                st.dataframe(localize_dataframe_columns(result_df), use_container_width=True)
 
             if judge_enabled or ragas_enabled:
                 merged_records = merge_eval_records(judge_records, ragas_records)
                 summary = aggregate_results(merged_records)
                 save_summary(summary_path, summary)
-                st.caption(f"Summary: `{summary_path}`")
 
                 summary_df = summary_to_dataframe(summary)
-                st.subheader("Tong hop metric theo model")
-                st.dataframe(summary_df, use_container_width=True)
+                with st.expander("Tổng hợp chỉ số theo mô hình", expanded=True):
+                    st.caption(f"Summary: `{summary_path}`")
+                    st.dataframe(localize_dataframe_columns(summary_df), use_container_width=True)
 
                 metric_columns = [
                     "faithfulness_mean",
@@ -903,8 +1006,9 @@ with tab2:
 
                 if available_metric_columns:
                     chart_df = summary_df.set_index("model_name")[available_metric_columns]
-                    st.subheader("Bieu do metric theo model")
-                    st.bar_chart(chart_df)
+                    chart_df = localize_dataframe_columns(chart_df)
+                    with st.expander("Biểu đồ chỉ số theo mô hình", expanded=True):
+                        st.bar_chart(chart_df)
 
                 hallucination_columns = [
                     "hallucination_rate_ge_1",
@@ -914,5 +1018,6 @@ with tab2:
                 available_hall_columns = [col for col in hallucination_columns if col in summary_df.columns]
                 if available_hall_columns:
                     hall_df = summary_df.set_index("model_name")[available_hall_columns]
-                    st.subheader("Bieu do ty le hallucination theo model")
-                    st.bar_chart(hall_df)
+                    hall_df = localize_dataframe_columns(hall_df)
+                    with st.expander("Biểu đồ tỷ lệ hallucination", expanded=True):
+                        st.bar_chart(hall_df)
