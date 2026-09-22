@@ -1,0 +1,69 @@
+1. GIỚI THIỆU
+Hướng dẫn năm 2020 của Trường Môn Thấp khớp học Hoa Kỳ (ACR) về Quản lý Bệnh Gút cung cấp hướng dẫn về quản lý bệnh gút, bao gồm chỉ định và cách sử dụng tối ưu liệu pháp hạ acid uric (ULT — urate-lowering therapy), điều trị các đợt gút cấp (flare), cùng các khuyến nghị về lối sống và thuốc dùng kèm.
+Gút là dạng viêm khớp phổ biến nhất, ảnh hưởng đến khoảng 9,2 triệu người trưởng thành (3,9%) tại Hoa Kỳ. Mặc dù cơ chế bệnh sinh của gút đã được hiểu rõ và có các thuốc điều trị hiệu quả, chi phí thấp, nhưng khoảng cách trong chất lượng chăm sóc vẫn tồn tại. Hướng dẫn ACR năm 2012 và các hướng dẫn quốc tế khác đều khuyến nghị chiến lược điều trị theo mục tiêu bằng ULT. Tuy nhiên, mức độ tuân thủ điều trị vẫn kém — thấp nhất trong số 7 bệnh mạn tính thường gặp được khảo sát. 
+
+2. CHỈ ĐỊNH DÙNG LIỆU PHÁP HẠ ACID URIC (ULT) BẰNG THUỐC
+Khuyến nghị mạnh: Bắt đầu ULT được khuyến nghị mạnh cho bệnh nhân gút có bất kỳ đặc điểm nào sau đây: có từ 1 hạt tophi dưới da trở lên; có bằng chứng tổn thương trên X-quang (bất kỳ phương pháp hình ảnh nào) do gút; HOẶC có đợt gút cấp thường xuyên (định nghĩa là từ 2 lần/năm trở lên).
+Khuyến nghị có điều kiện: Bắt đầu ULT được khuyến nghị có điều kiện cho bệnh nhân từng có lớn hơn 1 đợt cấp nhưng tần suất thưa (nhỏ hơn 2 lần/năm).
+Khuyến nghị có điều kiện phản đối: Bắt đầu ULT ở bệnh nhân đang trải qua đợt gút cấp đầu tiên.
+Tuy nhiên, bắt đầu ULT được khuyến nghị có điều kiện ủng hộ ở bệnh nhân có bệnh thận mạn (CKD) vừa–nặng đồng mắc (giai đoạn từ 3 trở lên), nồng độ acid uric huyết thanh (SU) lớn hơn 9 mg/dl, hoặc sỏi tiết niệu.
+Khuyến nghị có điều kiện phản đối: Bắt đầu ULT ở người tăng acid uric máu không triệu chứng. Ở nhóm này, lợi ích của ULT không vượt trội chi phí hoặc nguy cơ điều trị đối với số đông bệnh nhân khó có khả năng tiến triển thành gút.
+
+3. KHUYẾN NGHỊ CHỌN ULT KHỞI ĐẦU CHO BỆNH NHÂN GÚT
+Khuyến nghị mạnh: Allopurinol là thuốc hàng đầu ưu tiên hơn mọi ULT khác, cho mọi bệnh nhân, kể cả người có bệnh thận mạn (CKD) vừa–nặng (giai đoạn từ 3 trở lên). Ban Bỏ phiếu khuyến nghị mạnh allopurinol là thuốc hàng đầu vì hiệu quả khi dùng liều phù hợp, khả năng dung nạp, an toàn, và chi phí thấp hơn.
+Khuyến nghị mạnh: Ưu tiên allopurinol hoặc febuxostat hơn probenecid cho bệnh nhân CKD vừa–nặng (giai đoạn từ 3 trở lên).
+Khuyến nghị mạnh phản đối: Dùng pegloticase làm liệu pháp hàng đầu.
+Khuyến nghị mạnh: Bắt đầu với liều thấp allopurinol (nhỏ hơn hoặc bằng 100 mg/ngày, thấp hơn ở bệnh nhân CKD giai đoạn từ 3 trở lên) và febuxostat (nhỏ hơn hoặc bằng 40 mg/ngày), sau đó chỉnh liều tăng dần, thay vì bắt đầu ngay liều cao.
+Khuyến nghị có điều kiện: Bắt đầu với liều thấp probenecid (500 mg, 1–2 lần/ngày) rồi chỉnh liều tăng dần.
+
+4. DỰ PHÒNG KHÁNG VIÊM ĐỒNG THỜI
+Khuyến nghị mạnh: Dùng liệu pháp dự phòng kháng viêm đồng thời (ví dụ: colchicine, NSAID, prednisone/prednisolone) hơn là không dự phòng khi bắt đầu ULT.
+Khuyến nghị mạnh: Tiếp tục dự phòng kháng viêm đồng thời trong 3–6 tháng thay vì dưới 3 tháng, với đánh giá liên tục và tiếp tục dự phòng khi cần nếu bệnh nhân vẫn còn đợt cấp.
+
+5. THỜI ĐIỂM VÀ CHIẾN LƯỢC BẮT ĐẦU ULT
+Khuyến nghị có điều kiện: Khi đã quyết định chỉ định ULT trong lúc bệnh nhân đang có đợt gút cấp, nên bắt đầu ULT ngay trong đợt cấp thay vì đợi đợt cấp hết hẳn. Bắt đầu ULT trong đợt cấp có lợi ích về mặt hiệu quả thời gian và tận dụng động lực của bệnh nhân.
+Khuyến nghị mạnh: Sử dụng chiến lược điều trị theo mục tiêu (treat-to-target), bao gồm chỉnh liều ULT và liều tiếp theo dựa trên đo acid uric huyết thanh (SU) định kỳ để đạt mục tiêu SU, thay vì chiến lược liều cố định, cho mọi bệnh nhân dùng ULT. Việc chỉnh liều ULT nên diễn ra trong vài tuần đến vài tháng.
+Khuyến nghị mạnh: Đạt và duy trì mục tiêu SU nhỏ hơn 6 mg/dl thay vì không có mục tiêu, cho mọi bệnh nhân dùng ULT.
+
+6. THỜI GIAN DÙNG ULT
+Khuyến nghị có điều kiện: Tiếp tục dùng ULT vô thời hạn thay vì ngừng thuốc. Khi ngừng ULT ở bệnh nhân lui bệnh lâm sàng, phần lớn bệnh nhân có nồng độ SU tăng trở lại và có nguy cơ tái phát đợt cấp.
+
+7. KHUYẾN NGHỊ CHO CÁC THUỐC ULT CỤ THỂ
+
+7.1. Allopurinol
+Khuyến nghị có điều kiện: Xét nghiệm allele HLA-B*5801 trước khi bắt đầu allopurinol cho bệnh nhân gốc Đông Nam Á (như Hán, Hàn Quốc, Thái) và người Mỹ gốc Phi. Allele này liên quan đến nguy cơ hội chứng quá mẫn allopurinol (AHS) tăng rõ rệt.
+Khuyến nghị có điều kiện phản đối: Xét nghiệm phổ cập HLA-B*5801 cho bệnh nhân thuộc các nhóm chủng tộc/dân tộc khác.
+Khuyến nghị có điều kiện: Giải mẫn cảm với allopurinol cho bệnh nhân từng có phản ứng dị ứng với allopurinol mà không thể điều trị bằng ULT đường uống khác.
+
+7.2. Febuxostat
+Khuyến nghị có điều kiện: Chuyển sang một ULT đường uống khác (nếu có và phù hợp) cho bệnh nhân dùng febuxostat có tiền sử bệnh tim mạch (CVD) hoặc biến cố tim mạch mới. Khuyến nghị này dựa trên cảnh báo của FDA về nguy cơ tử vong do tim mạch liên quan đến febuxostat trong một số thử nghiệm, dù dữ liệu quan sát thực tế còn tranh cãi.
+
+7.3. Thuốc tăng thải acid uric (Uricosuric)
+Khuyến nghị có điều kiện phản đối: Kiểm tra acid uric niệu cho bệnh nhân cân nhắc hoặc đang dùng thuốc tăng thải acid uric.
+Khuyến nghị có điều kiện phản đối: Kiềm hóa nước tiểu cho bệnh nhân dùng thuốc tăng thải acid uric. Không tìm thấy bằng chứng hỗ trợ hiệu quả của việc kiềm hóa nước tiểu. Bệnh nhân có sỏi thận đã biết hoặc CKD vừa–nặng không nên dùng thuốc tăng thải acid uric.
+
+8. THAY ĐỔI CHIẾN LƯỢC ULT
+Khuyến nghị có điều kiện: Chuyển sang XOI thứ hai thay vì thêm thuốc tăng thải acid uric, cho bệnh nhân đang dùng XOI đầu tiên, có SU vẫn cao (lớn hơn 6 mg/dl) dù đã dùng liều tối đa dung nạp được, và vẫn còn đợt cấp thường xuyên (lớn hơn 2 lần/năm) HOẶC có tophi dưới da chưa hết.
+Khuyến nghị mạnh: Chuyển sang pegloticase thay vì tiếp tục ULT hiện tại, cho bệnh nhân gút mà điều trị XOI, thuốc tăng thải acid uric, và các can thiệp khác đều không đạt mục tiêu SU, và vẫn còn đợt cấp thường xuyên (từ 2 lần/năm trở lên) HOẶC có tophi dưới da chưa hết.
+Khuyến nghị mạnh phản đối: Chuyển sang pegloticase cho bệnh nhân gút mà điều trị không đạt mục tiêu SU, nhưng có đợt cấp thưa (nhỏ hơn 2 lần/năm) VÀ không có tophi. Chi phí và nguy cơ của pegloticase (bao gồm truyền tĩnh mạch mỗi 2 tuần và nguy cơ dị ứng nghiêm trọng) vượt trội lợi ích ở nhóm bệnh nhân nhẹ này.
+
+9. XỬ TRÍ ĐỢT GÚT CẤP
+Khuyến nghị mạnh: Dùng colchicine, NSAID, hoặc glucocorticoid (uống, tiêm khớp, hoặc tiêm bắp) làm liệu pháp hàng đầu phù hợp cho đợt gút cấp, thay vì thuốc ức chế IL-1 hoặc hormone hướng vỏ thượng thận (ACTH).
+Khuyến nghị mạnh: Ưu tiên colchicine liều thấp hơn liều cao khi chọn colchicine, do hiệu quả tương đương nhưng nguy cơ tác dụng phụ thấp hơn. Liều colchicine được FDA phê duyệt là 1,2 mg ngay, tiếp theo 0,6 mg một giờ sau, cùng điều trị kháng viêm liên tục cho đến khi hết đợt cấp.
+Khuyến nghị có điều kiện: Dùng đá lạnh tại chỗ như liệu pháp hỗ trợ cho bệnh nhân có đợt gút cấp.
+Khuyến nghị có điều kiện: Dùng thuốc ức chế IL-1 cho bệnh nhân có đợt cấp mà các liệu pháp kháng viêm trên không hiệu quả, dung nạp kém, hoặc chống chỉ định.
+Khuyến nghị mạnh: Dùng glucocorticoid (tiêm bắp, tiêm tĩnh mạch, hoặc tiêm khớp) thay vì thuốc ức chế IL-1 hoặc ACTH, cho bệnh nhân không thể dùng thuốc đường uống.
+Ủng hộ chiến lược "mang thuốc theo người" tại nhà để bệnh nhân có thể nhận biết dấu hiệu sớm của đợt cấp và can thiệp kịp thời.
+
+10. QUẢN LÝ CÁC YẾU TỐ LỐI SỐNG
+Khuyến nghị có điều kiện: Hạn chế uống rượu bia cho bệnh nhân gút, bất kể mức độ hoạt động bệnh. Uống rượu bia liên quan đến nguy cơ đợt cấp cao hơn.
+Khuyến nghị có điều kiện: Hạn chế ăn thực phẩm giàu purin cho bệnh nhân gút, bất kể mức độ hoạt động bệnh.
+Khuyến nghị có điều kiện: Hạn chế siro fructose cao (high-fructose corn syrup) cho bệnh nhân gút, bất kể mức độ hoạt động bệnh.
+Khuyến nghị có điều kiện: Áp dụng chương trình giảm cân cho bệnh nhân gút thừa cân/béo phì, bất kể mức độ hoạt động bệnh. Giảm cân có liên quan đến việc giảm nồng độ SU và giảm tỷ lệ tái phát đợt cấp.
+Khuyến nghị có điều kiện phản đối: Bổ sung vitamin C cho bệnh nhân gút, bất kể mức độ hoạt động bệnh. Không có dữ liệu chứng minh thay đổi SU có ý nghĩa lâm sàng ở bệnh nhân gút dùng vitamin C.
+SS
+11. QUẢN LÝ THUỐC DÙNG ĐỒNG THỜI
+Khuyến nghị có điều kiện: Chuyển từ hydrochlorothiazide sang thuốc hạ áp khác khi khả thi, cho bệnh nhân gút.
+Khuyến nghị có điều kiện: Ưu tiên chọn losartan làm thuốc hạ áp khi khả thi, cho bệnh nhân gút. Việc chuyển từ thuốc ức chế men chuyển sang losartan mang lại tác dụng hạ urat khiêm tốn.
+Khuyến nghị có điều kiện phản đối: Ngừng aspirin liều thấp (ở bệnh nhân đang dùng vì chỉ định phù hợp), cho bệnh nhân gút, bất kể mức độ hoạt động bệnh. Không có lựa chọn thay thế thực tế cho aspirin liều thấp.
+Khuyến nghị có điều kiện phản đối: Thêm hoặc chuyển thuốc hạ mỡ máu sang fenofibrate, cho bệnh nhân gút, bất kể mức độ hoạt động bệnh. Nguy cơ tác dụng phụ của fenofibrate vượt trội lợi ích hạ urat tiềm năng của nó.
